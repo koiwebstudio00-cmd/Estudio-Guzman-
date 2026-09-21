@@ -12,14 +12,68 @@ Estados permitidos: **Hecho**, **En curso**, **Pendiente**, **Bloqueado**.
 |---|---|---|
 | Base frontend | Hecho | React, Vite, TypeScript, Tailwind y shadcn/ui ya configurados. |
 | Navegación y layout | Hecho | Sidebar, header y rutas principales disponibles. |
-| Datos mockeados | Hecho | Usuarios, contactos, expedientes, actuaciones, cuadernos, tareas, notas y logs. |
-| Persistencia local | Hecho | Estado guardado en `localStorage`. |
-| Base de datos y API | Pendiente | No existen en el proyecto. |
-| Autenticación y permisos | Pendiente | El usuario actual es simulado. |
-| Archivos reales | Pendiente | Los PDFs se simulan mediante `hasFile`. |
-| Pruebas automatizadas | Pendiente | No hay suite de tests configurada. |
+| Datos mockeados | Retirado | Eliminados del bundle productivo en Fase 12. |
+| Persistencia local | Retirado | Sin estado funcional en `localStorage`. |
+| Base de datos y API | Hecho | Módulos funcionales conectados a PostgreSQL mediante la API. |
+| Autenticación y permisos | Hecho | Sesión opaca, CSRF, RBAC y recuperación. |
+| Archivos reales | Hecho | PDFs privados, versiones, checksum y antivirus. |
+| Pruebas automatizadas | Hecho | Vitest, Testing Library, cobertura V8 y smoke Playwright ejecutables localmente. |
 
 ## Registro de avances
+
+### 2026-09-21 — Página de Actividad — Hecho
+
+- Se agregó la ruta protegida `/actividad`, visible únicamente para usuarios con `audit.read`.
+- La pantalla consulta la auditoría completa con filtros por módulo y rango inclusivo de fechas, y pagina mediante cursor.
+- El dashboard conserva su resumen de actividad relevante y enlaza al historial completo sólo para usuarios autorizados.
+- Se agregó cobertura E2E para filtros, detalle técnico y carga de páginas adicionales.
+
+### 2026-09-21 — Preparación de despliegue — Hecho
+
+- Se configuró Vercel para construir la SPA, resolver rutas de React Router y aplicar headers defensivos básicos.
+- Se documentaron el dominio productivo, `VITE_API_URL`, la separación de previews/staging y la verificación posterior al deploy.
+- El frontend se publicará en `guzman.koistudio.com.ar` y consumirá la API de Dokploy en `api-guzman.koistudio.com.ar`.
+
+### 2026-09-19 — Fases 3 a 12 — Hecho
+
+- Se conectaron autenticación, equipo/RBAC, contactos, expedientes, timeline, documentos, tareas, notas, dashboard, búsqueda, métricas, notificaciones y feedback.
+- Se eliminó `AppContext`, `localStorage` funcional y todo el dataset mock del bundle.
+- Se completaron hardening, contratos, runbooks y gates automatizados para entrega local por ramas acumulativas.
+
+### 2026-09-18 — Fase 2: harness de pruebas — Hecho
+
+- Se agregaron suites unitarias y de componentes con Vitest, Testing Library y jsdom.
+- Se incorporó cobertura V8/LCOV como señal orientativa.
+- Se preparó Playwright y un smoke E2E del dashboard en Chromium.
+- Se definió una batería local reproducible con tipos, tests, cobertura, build y E2E.
+- El backend incorporó tests unitarios/API/integración, migración automática y aislamiento sobre `estudio_guzman_test`.
+
+### 2026-09-17 — Fases 0 y 1 del backend — Hecho
+
+- Se relevó el comportamiento real del frontend, sus tipos y datos mockeados.
+- Se aprobaron la matriz RBAC granular, los roles procesales y las reglas de acceso por recurso.
+- Se cerraron las máquinas de estado para expedientes, cuadernos, tareas y usuarios.
+- Se creó y validó la migración inicial sobre PostgreSQL 17.
+- Se incorporaron el seed RBAC idempotente, roles DB separados y el bootstrap seguro del primer administrador.
+- Se documentaron operación, restauración y preparación de PostgreSQL local sin Docker obligatorio.
+
+### 2026-09-16 — Auditoría de Lamelas y fundación ejecutable — Hecho
+
+- Se auditó en detalle `back-lamelas`: módulos, servicios, scripts, dependencias, tests, Docker, migraciones y operación.
+- Se documentó qué patrones se reutilizan, cuáles se adaptan y qué componentes específicos del SaaS inmobiliario se descartan.
+- Se creó el backend Node.js 22, Express 5, TypeScript estricto, Prisma 7/PostgreSQL, Zod, Pino y Vitest.
+- Se incorporaron configuración fail-fast, errores RFC 7807, request IDs, liveness/readiness, graceful shutdown y storage privado protegido contra path traversal.
+- Se agregó Docker multi-stage, Compose de desarrollo, seed inicial de RBAC, lockfile propio y scripts de base de datos.
+- Prisma, lint, typecheck, build, pruebas y auditoría de runtime quedaron validados; el runtime informa 0 vulnerabilidades.
+
+### 2026-09-16 — Diseño de backend, base de datos y API — Hecho
+
+- Se copió el frontend al workspace de arquitectura sin dependencias ni artefactos generados.
+- Se relevó el dominio completo y las brechas entre el mock local y un sistema productivo.
+- Se diseñó PostgreSQL con Prisma para autenticación, RBAC, contactos, partes múltiples, expedientes, actuaciones, cuadernos, tareas, notas, archivos versionados, auditoría y notificaciones.
+- Se definió el contrato REST `/api/v1`, los servicios del monolito modular y la topología recomendada para VPS.
+- Se documentaron seguridad de archivos, backups, observabilidad, pruebas y fases de implementación.
+- El esquema inicial fue formateado y validado con Prisma CLI 7.10.0.
 
 ### 2026-09-15 — Documentación inicial del producto — Hecho
 
@@ -39,20 +93,17 @@ Estados permitidos: **Hecho**, **En curso**, **Pendiente**, **Bloqueado**.
 
 | Prioridad | Trabajo | Estado | Dependencias o decisión requerida |
 |---|---|---|---|
-| P0 | Elegir backend, proveedor de autenticación y base de datos | Pendiente | Definir infraestructura y requisitos de privacidad. |
-| P0 | Implementar esquema relacional y migraciones | Pendiente | Validar el modelo de datos y roles procesales. |
+| P0 | Validar diseño de backend, autenticación y base de datos | Hecho | Decisiones funcionales y matriz RBAC aprobadas. |
+| P0 | Implementar esquema relacional y migraciones | Hecho | Migración inicial y constraints validados sobre PostgreSQL 17. |
 | P0 | Implementar autenticación y autorización | Pendiente | Matriz de permisos por rol. |
 | P1 | Reemplazar `clientId` y `opponentId` por partes procesales | Pendiente | Definir roles, representantes y reglas de carátula. |
 | P1 | API para expedientes, contactos, actuaciones y tareas | Pendiente | Backend y contratos de validación. |
 | P1 | Adjuntos reales y acceso seguro a documentos | Pendiente | Elegir almacenamiento y política de retención. |
 | P1 | Completar CRUD de contactos y edición de expedientes | Pendiente | API y criterios de validación. |
 | P2 | Vista de lista de tareas y filtros avanzados | Pendiente | Definir campos y ordenamientos necesarios. |
-| P2 | Pruebas, observabilidad y backups | Pendiente | Arquitectura de despliegue definida. |
+| P2 | Pruebas automatizadas | Hecho | Harness frontend/backend y comandos locales reproducibles disponibles. |
+| P2 | Observabilidad y backups | Pendiente | Se completa durante hardening/despliegue. |
 
 ## Bloqueos activos
 
-No hay bloqueos técnicos activos. Las decisiones de infraestructura, permisos, roles procesales y retención documental deben resolverse antes de usar datos reales.
-
-## Próxima actualización
-
-Al iniciar la capa de backend, registrar: tecnología elegida, esquema de autenticación, entorno de despliegue, migraciones creadas y contrato API inicial.
+No hay bloqueos de desarrollo. Falta la revisión manual del usuario por fase y, antes del go-live, ejecutar el ensayo de backup/restauración y smoke en el VPS/staging real.

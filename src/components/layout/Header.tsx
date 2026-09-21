@@ -1,20 +1,30 @@
-import React from 'react';
-import { Menu, Search, Settings } from 'lucide-react';
-import { useAppStore } from '../../store/AppContext';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { useEffect, useState } from 'react';
+import { FileText, LogOut, Menu, Scale, Search, User, UsersRound } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext';
+import { globalSearch } from '../../features/dashboard/api';
+import type { SearchResult } from '../../features/dashboard/types';
+import { NotificationsButton } from '../../features/notifications/NotificationsButton';
 
-export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) => {
-  const { users, currentUser, setCurrentUser, resetData } = useAppStore();
+export const Header = ({ onMenuClick }: { onMenuClick: () => void }) => {
+  const { user, logout, logoutAll } = useAuth();
   const navigate = useNavigate();
+  const [query, setQuery] = useState(''); const [results, setResults] = useState<SearchResult[]>([]); const [searching, setSearching] = useState(false); const [searchError, setSearchError] = useState(false);
 
-  const handleReset = () => {
-    resetData();
-    toast.success('Datos de demostración restablecidos.');
-    navigate('/');
+  useEffect(() => { if (query.trim().length < 2) { setResults([]); setSearching(false); setSearchError(false); return; } let active = true; const timer = window.setTimeout(() => { setSearching(true); setSearchError(false); void globalSearch(query).then((items) => { if (active) setResults(items); }).catch(() => { if (active) setSearchError(true); }).finally(() => { if (active) setSearching(false); }); }, 250); return () => { active = false; window.clearTimeout(timer); }; }, [query]);
+  const open = (result: SearchResult) => { setQuery(''); setResults([]); navigate(result.path); };
+
+  const handleLogout = async (allSessions = false) => {
+    try {
+      if (allSessions) await logoutAll();
+      else await logout();
+      navigate('/login', { replace: true });
+    } catch {
+      toast.error('No se pudo cerrar la sesión correctamente.');
+    }
   };
 
   return (
@@ -30,37 +40,40 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
             type="search" 
             placeholder="Buscar juicio, expediente, cliente..." 
             className="pl-9 bg-stone-50 border-transparent focus-visible:bg-white w-full rounded-full"
+            aria-label="Búsqueda global"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
+          {query.trim().length >= 2 ? <div className="absolute top-11 z-50 max-h-96 w-full overflow-y-auto rounded-xl border bg-white p-2 shadow-xl">{searching ? <p className="p-3 text-sm text-stone-500">Buscando…</p> : searchError ? <p role="alert" className="p-3 text-sm text-red-600">La búsqueda no está disponible.</p> : results.length ? results.map((result) => { const Icon = result.type === 'CASE' ? Scale : result.type === 'CONTACT' ? User : FileText; return <button key={`${result.type}:${result.id}`} type="button" className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-stone-50" onClick={() => open(result)}><Icon className="h-4 w-4 shrink-0 text-stone-500" /><span className="min-w-0"><strong className="block truncate text-sm">{result.title}</strong><span className="block truncate text-xs text-stone-500">{result.subtitle}</span></span></button>; }) : <p className="p-3 text-sm text-stone-500">Sin resultados.</p>}</div> : null}
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-stone-400">
-            <Settings className="h-5 w-5 text-stone-500" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Simular Usuario</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {users.map(user => (
-              <DropdownMenuItem 
-                key={user.id} 
-                onClick={() => {
-                  setCurrentUser(user);
-                  toast.success(`Sesión cambiada a ${user.name}`);
-                }}
-                className="flex items-center justify-between"
-              >
-                <span>{user.name} <span className="text-stone-400 text-xs ml-1">({user.role})</span></span>
-                {currentUser?.id === user.id && <div className="h-2 w-2 rounded-full bg-green-500" />}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleReset} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-              Restablecer datos demo
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NotificationsButton />
+        <div className="hidden text-right sm:block">
+          <p className="text-sm font-medium text-stone-800">{user?.name}</p>
+          <p className="text-xs text-stone-500">{user?.email}</p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Cerrar todas las sesiones"
+          title="Cerrar todas las sesiones"
+          onClick={() => void handleLogout(true)}
+        >
+          <UsersRound className="h-5 w-5" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Cerrar sesión"
+          title="Cerrar sesión"
+          onClick={() => void handleLogout(false)}
+        >
+          <LogOut className="h-5 w-5" />
+        </Button>
       </div>
     </header>
   );

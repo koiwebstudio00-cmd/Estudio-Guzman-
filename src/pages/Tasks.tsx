@@ -1,328 +1,67 @@
-import React, { useState } from 'react';
-import { useAppStore } from '../store/AppContext';
-import { Button } from '../components/ui/button';
-import { Plus, LayoutGrid, List, CalendarIcon, User, Briefcase, FileText, CheckCircle2 } from 'lucide-react';
+import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react';
+import { CalendarIcon, LayoutGrid, List, MessageSquare, Plus } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '../auth/AuthContext';
 import { Badge } from '../components/ui/badge';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog';
+import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Task, TaskPriority, TaskStatus } from '../types';
+import { getCases } from '../features/cases/api';
+import type { LegalCase } from '../features/cases/types';
+import { getUsers } from '../features/team/api';
+import type { TeamUser } from '../features/team/types';
+import { addTaskComment, assignTask, createTask, getTasks, transitionTask } from '../features/tasks/api';
+import type { Task, TaskPriority, TaskStatus } from '../features/tasks/types';
+import { ApiProblem } from '../lib/api';
 
-export const Tasks: React.FC = () => {
-  const { tasks, users, cases, currentUser, addTask, updateTask } = useAppStore();
-  const [view, setView] = useState<'kanban' | 'list'>('kanban');
-  
-  const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+const columns: Array<{ status: TaskStatus; label: string }> = [
+  { status: 'PENDING', label: 'Pendientes' }, { status: 'IN_PROGRESS', label: 'En progreso' },
+  { status: 'COMPLETED', label: 'Completadas' }, { status: 'CANCELLED', label: 'Canceladas' },
+];
+const priorityLabel: Record<TaskPriority, string> = { LOW: 'Baja', MEDIUM: 'Media', HIGH: 'Alta', URGENT: 'Urgente' };
+const errorMessage = (error: unknown) => error instanceof ApiProblem ? error.message : 'No se pudo completar la operación.';
+const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('es-AR', { dateStyle: 'short' }).format(new Date(value)) : 'Sin vencimiento';
 
-  const initialForm = {
-    title: '',
-    description: '',
-    responsibleId: 'none',
-    dueDate: '',
-    priority: 'Media' as TaskPriority,
-    status: 'Pendiente' as TaskStatus,
-    caseId: 'none'
-  };
-  const [formData, setFormData] = useState(initialForm);
+export const Tasks = () => {
+  const { can } = useAuth(); const [tasks, setTasks] = useState<Task[]>([]); const [users, setUsers] = useState<TeamUser[]>([]); const [cases, setCases] = useState<LegalCase[]>([]); const [loading, setLoading] = useState(true); const [view, setView] = useState<'kanban' | 'list'>('kanban'); const [createOpen, setCreateOpen] = useState(false); const [selectedId, setSelectedId] = useState<string | null>(null); const [draggedId, setDraggedId] = useState<string | null>(null); const [priority, setPriority] = useState<'ALL' | TaskPriority>('ALL'); const [assignee, setAssignee] = useState('ALL');
+  const selected = useMemo(() => tasks.find((task) => task.id === selectedId) ?? null, [tasks, selectedId]);
+  const shown = useMemo(() => tasks.filter((task) => (priority === 'ALL' || task.priority === priority) && (assignee === 'ALL' || task.assignees.some((user) => user.id === assignee))), [tasks, priority, assignee]);
+  useEffect(() => { let active = true; setLoading(true); void Promise.all([getTasks(), getUsers(), getCases({ limit: 100 })]).then(([taskPage, nextUsers, casePage]) => { if (!active) return; setTasks(taskPage.data); setUsers(nextUsers.filter((user) => user.status === 'ACTIVE')); setCases(casePage.data); }).catch((error) => { if (active) toast.error(errorMessage(error)); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, []);
+  const replace = (value: Task) => setTasks((current) => current.map((task) => task.id === value.id ? value : task));
 
-  const getAssignee = (id: string) => (users || []).find(u => u.id === id)?.name || 'Sin asignar';
-  const getCaseName = (id?: string) => (cases || []).find(c => c.id === id)?.title;
+  async function move(task: Task, status: TaskStatus) {
+    if (task.status === status) return;
+    const reasonRequired = status === 'CANCELLED' || task.status === 'COMPLETED' || task.status === 'CANCELLED' || (task.status === 'IN_PROGRESS' && status === 'PENDING');
+    const reason = reasonRequired ? window.prompt('Indicá el motivo del cambio de estado:')?.trim() : undefined;
+    if (reasonRequired && !reason) return;
+    const snapshot = tasks; setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status, version: item.version + 1 } : item));
+    try { replace(await transitionTask(task.id, { version: task.version, toStatus: status, ...(reason ? { reason } : {}) })); }
+    catch (error) { setTasks(snapshot); toast.error(errorMessage(error)); }
+  }
+  function drop(event: DragEvent, status: TaskStatus) { event.preventDefault(); const task = tasks.find((item) => item.id === draggedId); setDraggedId(null); if (task) void move(task, status); }
+  if (loading) return <p className="text-stone-500">Cargando tareas…</p>;
 
-  const safeFormatDate = (dateStr: string | undefined, fmt: string) => {
-    if (!dateStr) return '-';
-    try {
-      return format(parseISO(dateStr), fmt, { locale: es });
-    } catch (e) {
-      return '-';
-    }
-  };
-
-  const handleCreateTask = () => {
-    if (!formData.title || !formData.responsibleId) return;
-
-    addTask({
-      title: formData.title,
-      description: formData.description,
-      responsibleId: formData.responsibleId,
-      createdById: currentUser?.id || users[0]?.id,
-      dueDate: formData.dueDate || undefined,
-      priority: formData.priority,
-      status: formData.status,
-      caseId: formData.caseId !== 'none' ? formData.caseId : undefined,
-    });
-    setNewTaskOpen(false);
-    setFormData(initialForm);
-  };
-
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
-    updateTask(taskId, { status: newStatus });
-    if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask({ ...selectedTask, status: newStatus });
-    }
-  };
-
-  const TaskCard: React.FC<{ task: Task }> = ({ task }) => (
-    <div 
-      onClick={() => setSelectedTask(task)}
-      className="bg-white p-3 rounded-lg shadow-sm border border-stone-200 hover:border-stone-300 transition-colors cursor-pointer group"
-    >
-      <div className="flex justify-between items-start mb-2">
-        <Badge variant="outline" className={
-          task.priority === 'Urgente' ? 'bg-red-50 text-red-700' :
-          task.priority === 'Alta' ? 'bg-orange-50 text-orange-700' : ''
-        }>
-          {task.priority}
-        </Badge>
-        {task.dueDate && <span className="text-xs text-stone-500">{safeFormatDate(task.dueDate, "dd/MM")}</span>}
-      </div>
-      <h4 className="font-medium text-stone-900 text-sm mb-2">{task.title}</h4>
-      {task.caseId && (
-        <p className="text-xs text-stone-500 truncate mb-3 hover:text-stone-700 hover:underline">
-          {getCaseName(task.caseId)}
-        </p>
-      )}
-      <div className="flex justify-between items-center mt-auto">
-        <div className="h-6 w-6 rounded-full bg-stone-100 flex items-center justify-center text-[10px] font-medium border border-stone-200" title={getAssignee(task.responsibleId)}>
-          {getAssignee(task.responsibleId)?.charAt(0) || '?'}
-        </div>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Tareas</h1>
-          <p className="text-stone-500">Gestión de actividades y vencimientos.</p>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="bg-stone-100 p-1 rounded-lg flex">
-            <button 
-              onClick={() => setView('kanban')}
-              className={`p-1.5 rounded-md transition-colors ${view === 'kanban' ? 'bg-white shadow-sm' : 'text-stone-500 hover:text-stone-900'}`}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button 
-              onClick={() => setView('list')}
-              className={`p-1.5 rounded-md transition-colors ${view === 'list' ? 'bg-white shadow-sm' : 'text-stone-500 hover:text-stone-900'}`}
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-          <Button className="gap-2 ml-auto sm:ml-0" onClick={() => setNewTaskOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Nueva Tarea
-          </Button>
-        </div>
-      </div>
-
-      {view === 'kanban' ? (
-        <div className="flex-1 min-h-0 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
-          <div className="flex sm:grid sm:grid-cols-3 gap-6 h-full pb-4 sm:pb-0 w-max sm:w-auto">
-            {(['Pendiente', 'En progreso', 'Completada'] as TaskStatus[]).map(status => {
-              const columnTasks = (tasks || []).filter(t => t.status === status);
-              return (
-                <div key={status} className="bg-stone-50/50 rounded-xl p-4 flex flex-col border border-stone-100 overflow-hidden h-full w-[85vw] sm:w-auto shrink-0 max-w-sm sm:max-w-none">
-                  <div className="flex items-center justify-between mb-4 shrink-0">
-                    <h3 className="font-semibold text-stone-700">{status}</h3>
-                    <Badge variant="secondary" className="bg-stone-200 text-stone-700">{columnTasks.length}</Badge>
-                  </div>
-                  <div className="space-y-3 overflow-y-auto pr-1 pb-4 flex-1">
-                    {columnTasks.map(t => <TaskCard key={t.id} task={t} />)}
-                    {columnTasks.length === 0 && (
-                      <div className="border-2 border-dashed border-stone-200 rounded-lg h-24 flex items-center justify-center text-sm text-stone-400">
-                        Sin tareas
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="p-8 text-center text-stone-500">
-            Vista de lista en desarrollo. (Usar la vista de tablero Kanban mientras tanto)
-          </div>
-        </div>
-      )}
-
-      {/* New Task Dialog */}
-      <Dialog open={newTaskOpen} onOpenChange={setNewTaskOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Nueva Tarea</DialogTitle>
-            <DialogDescription>
-              Crea una nueva tarea y asígnala a un miembro del equipo.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-stone-700">Título de la tarea *</label>
-              <Input 
-                placeholder="Ej. Revisar demanda..." 
-                value={formData.title}
-                onChange={e => setFormData({...formData, title: e.target.value})}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-stone-700">Descripción</label>
-              <Textarea 
-                placeholder="Detalles adicionales..."
-                className="min-h-[100px]"
-                value={formData.description}
-                onChange={e => setFormData({...formData, description: e.target.value})}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-stone-700">Responsable *</label>
-                <Select value={formData.responsibleId} onValueChange={v => setFormData({...formData, responsibleId: v})}>
-                  <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin asignar</SelectItem>
-                    {(users || []).map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-stone-700">Fecha de Vencimiento</label>
-                <Input 
-                  type="date" 
-                  value={formData.dueDate}
-                  onChange={e => setFormData({...formData, dueDate: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-stone-700">Prioridad</label>
-                <Select value={formData.priority} onValueChange={v => setFormData({...formData, priority: v as TaskPriority})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Baja">Baja</SelectItem>
-                    <SelectItem value="Media">Media</SelectItem>
-                    <SelectItem value="Alta">Alta</SelectItem>
-                    <SelectItem value="Urgente">Urgente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-stone-700">Expediente (Opcional)</label>
-                <Select value={formData.caseId} onValueChange={v => setFormData({...formData, caseId: v})}>
-                  <SelectTrigger><SelectValue placeholder="Ninguno" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Ninguno</SelectItem>
-                    {(cases || []).map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNewTaskOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateTask} disabled={!formData.title || formData.responsibleId === 'none'}>
-              Crear Tarea
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Task Detail Dialog */}
-      <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-        <DialogContent className="sm:max-w-[600px]">
-          {selectedTask && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className={
-                    selectedTask.priority === 'Urgente' ? 'bg-red-50 text-red-700 border-red-200' :
-                    selectedTask.priority === 'Alta' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-stone-50'
-                  }>
-                    {selectedTask.priority}
-                  </Badge>
-                  <Badge variant="secondary" className="bg-stone-100 text-stone-600">
-                    {selectedTask.status}
-                  </Badge>
-                </div>
-                <DialogTitle className="text-xl">{selectedTask.title}</DialogTitle>
-              </DialogHeader>
-
-              <div className="py-4 space-y-6">
-                {/* Meta details */}
-                <div className="flex flex-wrap gap-4 p-4 bg-stone-50 rounded-lg border border-stone-100 text-sm">
-                  <div className="flex items-center gap-2 text-stone-600">
-                    <User className="h-4 w-4 text-stone-400" />
-                    <span>Responsable: <span className="font-medium text-stone-900">{getAssignee(selectedTask.responsibleId)}</span></span>
-                  </div>
-                  {selectedTask.dueDate && (
-                    <div className="flex items-center gap-2 text-stone-600">
-                      <CalendarIcon className="h-4 w-4 text-stone-400" />
-                      <span>Vence: <span className="font-medium text-stone-900">{safeFormatDate(selectedTask.dueDate, "dd MMMM, yyyy")}</span></span>
-                    </div>
-                  )}
-                  {selectedTask.caseId && (
-                    <div className="flex items-center gap-2 text-stone-600">
-                      <Briefcase className="h-4 w-4 text-stone-400" />
-                      <span className="truncate max-w-[200px]">Caso: <span className="font-medium text-stone-900">{getCaseName(selectedTask.caseId)}</span></span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Description */}
-                <div>
-                  <h4 className="flex items-center gap-2 text-sm font-semibold text-stone-900 mb-2">
-                    <FileText className="h-4 w-4 text-stone-500" />
-                    Descripción
-                  </h4>
-                  <div className="text-sm text-stone-700 bg-white border border-stone-200 rounded-lg p-4 min-h-[100px] whitespace-pre-wrap">
-                    {selectedTask.description || <span className="text-stone-400 italic">No hay descripción proporcionada.</span>}
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter className="flex sm:justify-between items-center">
-                <div className="flex gap-2">
-                  <Select 
-                    value={selectedTask.status} 
-                    onValueChange={(v) => handleStatusChange(selectedTask.id, v as TaskStatus)}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pendiente">Pendiente</SelectItem>
-                      <SelectItem value="En progreso">En progreso</SelectItem>
-                      <SelectItem value="Completada">Completada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button variant="default" onClick={() => setSelectedTask(null)}>
-                  Cerrar
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  return <div className="space-y-6"><header className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-semibold">Tareas</h1><p className="text-stone-500">Actividades, responsables y vencimientos del estudio.</p></div><div className="flex gap-2"><div className="flex rounded-lg bg-stone-100 p-1"><Button variant={view === 'kanban' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista tablero" onClick={() => setView('kanban')}><LayoutGrid className="h-4 w-4" /></Button><Button variant={view === 'list' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista lista" onClick={() => setView('list')}><List className="h-4 w-4" /></Button></div>{can('tasks.create') ? <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" /> Nueva tarea</Button> : null}</div></header>
+    <div className="flex flex-wrap gap-3 rounded-xl border bg-white p-3"><select aria-label="Filtrar prioridad" className="h-9 rounded-md border px-3" value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)}><option value="ALL">Todas las prioridades</option>{Object.entries(priorityLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select aria-label="Filtrar responsable" className="h-9 rounded-md border px-3" value={assignee} onChange={(event) => setAssignee(event.target.value)}><option value="ALL">Todos los responsables</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></div>
+    {view === 'kanban' ? <div className="grid gap-4 xl:grid-cols-4">{columns.map((column) => { const items = shown.filter((task) => task.status === column.status); return <section key={column.status} aria-label={column.label} className="min-h-56 rounded-xl border bg-stone-50 p-3" onDragOver={(event) => event.preventDefault()} onDrop={(event) => drop(event, column.status)}><div className="mb-3 flex justify-between"><h2 className="font-semibold">{column.label}</h2><Badge variant="secondary">{items.length}</Badge></div><div className="space-y-3">{items.map((task) => <div key={task.id}><TaskCard task={task} onOpen={setSelectedId} onDrag={setDraggedId} /></div>)}{items.length === 0 ? <p className="rounded-lg border border-dashed p-6 text-center text-sm text-stone-400">Sin tareas</p> : null}</div></section>; })}</div> : <div className="overflow-hidden rounded-xl border bg-white"><table className="w-full text-left text-sm"><thead className="bg-stone-50"><tr><th className="p-3">Tarea</th><th className="p-3">Estado</th><th className="p-3">Responsables</th><th className="p-3">Vencimiento</th></tr></thead><tbody>{shown.map((task) => <tr key={task.id} className="cursor-pointer border-t hover:bg-stone-50" onClick={() => setSelectedId(task.id)}><td className="p-3 font-medium">{task.title}</td><td className="p-3">{columns.find((column) => column.status === task.status)?.label}</td><td className="p-3">{task.assignees.map((user) => user.name).join(', ')}</td><td className="p-3">{formatDate(task.dueDate)}</td></tr>)}</tbody></table></div>}
+    <CreateTaskDialog open={createOpen} users={users} cases={cases} onOpenChange={setCreateOpen} onCreated={(value) => setTasks((current) => [value, ...current])} />
+    <TaskDetail task={selected} users={users} onOpenChange={(open) => { if (!open) setSelectedId(null); }} onMove={move} onReplace={replace} />
+  </div>;
 };
+
+function TaskCard({ task, onOpen, onDrag }: { task: Task; onOpen(id: string): void; onDrag(id: string): void }) { return <article draggable onDragStart={() => onDrag(task.id)} onClick={() => onOpen(task.id)} className="cursor-grab rounded-lg border bg-white p-3 shadow-sm active:cursor-grabbing"><div className="flex justify-between gap-2"><Badge variant="outline" className={task.priority === 'URGENT' ? 'border-red-200 bg-red-50 text-red-700' : ''}>{priorityLabel[task.priority]}</Badge><span className="text-xs text-stone-500">{formatDate(task.dueDate)}</span></div><h3 className="mt-2 font-medium">{task.title}</h3>{task.case ? <p className="mt-1 truncate text-xs text-stone-500">{task.case.caseNumber} · {task.case.title}</p> : null}<div className="mt-3 flex -space-x-1">{task.assignees.map((user) => <span key={user.id} title={user.name} className="flex h-6 w-6 items-center justify-center rounded-full border bg-stone-100 text-[10px]">{user.name.charAt(0)}</span>)}</div></article>; }
+
+function CreateTaskDialog({ open, users, cases, onOpenChange, onCreated }: { open: boolean; users: TeamUser[]; cases: LegalCase[]; onOpenChange(value: boolean): void; onCreated(value: Task): void }) {
+  const [submitting, setSubmitting] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const assigneeIds = data.getAll('assigneeIds').map(String); if (!assigneeIds.length) return toast.error('Seleccioná al menos un responsable.'); setSubmitting(true); try { const dueDate = String(data.get('dueDate') ?? ''); const caseId = String(data.get('caseId') ?? ''); const value = await createTask({ title: String(data.get('title')), description: String(data.get('description') ?? ''), priority: String(data.get('priority')) as TaskPriority, assigneeIds, ...(dueDate ? { dueDate } : {}), ...(caseId ? { caseId } : {}) }); onCreated(value); onOpenChange(false); form.reset(); toast.success('Tarea creada.'); } catch (error) { toast.error(errorMessage(error)); } finally { setSubmitting(false); } }
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><form onSubmit={submit} className="space-y-4"><DialogHeader><DialogTitle>Nueva tarea</DialogTitle><DialogDescription>Podés seleccionar varios responsables.</DialogDescription></DialogHeader><Label htmlFor="task-title">Título</Label><Input id="task-title" name="title" required /><Label htmlFor="task-description">Descripción</Label><Textarea id="task-description" name="description" /><div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="task-priority">Prioridad</Label><select id="task-priority" name="priority" className="mt-2 h-9 w-full rounded-md border px-3">{Object.entries(priorityLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><div><Label htmlFor="task-due">Vencimiento</Label><Input id="task-due" name="dueDate" type="date" className="mt-2" /></div></div><Label htmlFor="task-case">Expediente</Label><select id="task-case" name="caseId" className="h-9 w-full rounded-md border px-3"><option value="">Sin expediente</option>{cases.filter((item) => item.status !== 'ARCHIVED').map((item) => <option key={item.id} value={item.id}>{item.caseNumber} · {item.title}</option>)}</select><Label htmlFor="task-assignees">Responsables</Label><select id="task-assignees" name="assigneeIds" multiple required className="min-h-24 w-full rounded-md border p-2">{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><DialogFooter><Button type="submit" disabled={submitting}>Crear tarea</Button></DialogFooter></form></DialogContent></Dialog>;
+}
+
+function TaskDetail({ task, users, onOpenChange, onMove, onReplace }: { task: Task | null; users: TeamUser[]; onOpenChange(value: boolean): void; onMove(task: Task, status: TaskStatus): Promise<void>; onReplace(task: Task): void }) {
+  const { can } = useAuth(); const [commenting, setCommenting] = useState(false);
+  async function assign(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!task) return; const ids = new FormData(event.currentTarget).getAll('userIds').map(String); if (!ids.length) return toast.error('Seleccioná al menos un responsable.'); try { onReplace(await assignTask(task.id, ids)); toast.success('Responsables actualizados.'); } catch (error) { toast.error(errorMessage(error)); } }
+  async function comment(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!task) return; const form = event.currentTarget; const content = String(new FormData(form).get('content') ?? '').trim(); if (!content) return; setCommenting(true); try { const value = await addTaskComment(task.id, content); onReplace({ ...task, comments: [...task.comments, value] }); form.reset(); } catch (error) { toast.error(errorMessage(error)); } finally { setCommenting(false); } }
+  return <Dialog open={!!task} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">{task ? <div className="space-y-5"><DialogHeader><div className="flex gap-2"><Badge>{priorityLabel[task.priority]}</Badge><Badge variant="outline">{columns.find((column) => column.status === task.status)?.label}</Badge></div><DialogTitle>{task.title}</DialogTitle><DialogDescription>{task.description || 'Sin descripción.'}</DialogDescription></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="rounded border p-3"><p className="text-xs uppercase text-stone-400">Vencimiento</p><p className="flex items-center gap-2"><CalendarIcon className="h-4 w-4" /> {formatDate(task.dueDate)}</p></div><div className="rounded border p-3"><p className="text-xs uppercase text-stone-400">Expediente</p><p>{task.case ? `${task.case.caseNumber} · ${task.case.title}` : 'Sin expediente'}</p></div></div>{can('tasks.change_status') ? <div><Label htmlFor="detail-status">Cambiar estado</Label><select id="detail-status" aria-label="Cambiar estado" className="mt-2 h-9 w-full rounded-md border px-3" value={task.status} onChange={(event) => void onMove(task, event.target.value as TaskStatus)}>{columns.map((column) => <option key={column.status} value={column.status}>{column.label}</option>)}</select></div> : null}{can('tasks.assign') ? <form onSubmit={assign} className="space-y-2"><Label htmlFor="detail-assignees">Responsables</Label><select id="detail-assignees" name="userIds" multiple defaultValue={task.assignees.map((user) => user.id)} className="min-h-24 w-full rounded-md border p-2">{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select><Button type="submit" variant="outline">Guardar responsables</Button></form> : null}<section className="space-y-3"><h3 className="flex items-center gap-2 font-semibold"><MessageSquare className="h-4 w-4" /> Comentarios</h3>{task.comments.map((item) => <div key={item.id} className="rounded border p-3"><p>{item.content}</p><p className="mt-1 text-xs text-stone-500">{item.author.name}</p></div>)}{can('tasks.update') ? <form onSubmit={comment} className="flex gap-2"><Input name="content" aria-label="Nuevo comentario" required placeholder="Agregar comentario…" /><Button type="submit" disabled={commenting}>Enviar</Button></form> : null}</section><section><h3 className="font-semibold">Historial</h3><div className="mt-2 space-y-2">{task.history.map((item) => <p key={item.id} className="text-sm text-stone-600">{columns.find((column) => column.status === item.toStatus)?.label} · {item.changedBy.name}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div></section></div> : null}</DialogContent></Dialog>;
+}

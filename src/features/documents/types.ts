@@ -1,0 +1,4 @@
+export type DocumentCategory = 'PLEADING' | 'COURT_ORDER' | 'EVIDENCE' | 'NOTICE' | 'POWER_OF_ATTORNEY' | 'IDENTITY' | 'INTERNAL' | 'OTHER';
+export type ScanStatus = 'PENDING' | 'CLEAN' | 'INFECTED' | 'FAILED' | 'SKIPPED';
+export interface DocumentVersion { id: string; versionNumber: number; originalName: string; mimeType: string; sizeBytes: number; sha256: string; scanStatus: ScanStatus; scannedAt: string | null; createdAt: string; createdBy: { id: string; name: string } }
+export interface LegalDocument { id: string; title: string; category: DocumentCategory; description: string | null; caseId: string | null; subCaseId: string | null; actionId: string | null; taskId: string | null; noteId: string | null; version: number; createdAt: string; updatedAt: string; createdBy: { id: string; name: string }; versions: DocumentVersion[]; latestVersion: DocumentVersion | null }

@@ -1,0 +1,1 @@
+export interface Note { id: string; content: string; version: number; caseId: string | null; subCaseId: string | null; contactId: string | null; author: { id: string; name: string }; createdAt: string; updatedAt: string }

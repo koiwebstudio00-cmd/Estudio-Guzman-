@@ -1,163 +1,33 @@
-import React from 'react';
-import { useAppStore } from '../store/AppContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { useEffect, useState } from 'react';
+import { AlertCircle, CheckSquare, Clock, Scale, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Scale, CheckSquare, AlertCircle, Clock, Users } from 'lucide-react';
-import { format, isPast, isToday, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { useAuth } from '../auth/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { getDashboard } from '../features/dashboard/api';
+import type { DashboardData } from '../features/dashboard/types';
+import { auditActionLabel } from '../features/audit/labels';
+import { ApiProblem } from '../lib/api';
 
-export const Dashboard: React.FC = () => {
-  const { cases, tasks, contacts, currentUser, logs, users } = useAppStore();
+const errorMessage = (error: unknown) => error instanceof ApiProblem ? error.message : 'No se pudo cargar el dashboard.';
+const date = (value: string) => new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+const due = (value: string | null) => value ? new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(value)) : 'Sin fecha';
 
-  const activeCasesCount = cases.filter(c => c.status === 'Activo').length;
-  const pendingTasksCount = tasks.filter(t => t.status !== 'Completada').length;
-  const overdueTasksCount = tasks.filter(t => t.dueDate && isPast(parseISO(t.dueDate)) && t.status !== 'Completada').length;
-  const todayTasksCount = tasks.filter(t => t.dueDate && isToday(parseISO(t.dueDate)) && t.status !== 'Completada').length;
-  const clientsCount = contacts.filter(c => c.type === 'Cliente').length;
-
-  const myTasks = tasks.filter(t => t.responsibleId === currentUser?.id && t.status !== 'Completada');
-  const recentLogs = [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
-
-  const getLogUserName = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    return user ? user.name : 'Usuario';
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Inicio</h1>
-        <p className="text-stone-500">Bienvenido/a, {currentUser?.name}. Aquí tienes un resumen de la actividad.</p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Juicios Activos</CardTitle>
-            <Scale className="h-4 w-4 text-stone-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeCasesCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tareas Pendientes</CardTitle>
-            <CheckSquare className="h-4 w-4 text-stone-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingTasksCount}</div>
-            <p className="text-xs text-stone-500 mt-1">
-              {todayTasksCount} para hoy
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={overdueTasksCount > 0 ? "border-red-200" : ""}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tareas Vencidas</CardTitle>
-            <AlertCircle className={cn("h-4 w-4", overdueTasksCount > 0 ? "text-red-500" : "text-stone-500")} />
-          </CardHeader>
-          <CardContent>
-            <div className={cn("text-2xl font-bold", overdueTasksCount > 0 ? "text-red-600" : "")}>{overdueTasksCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clientes Activos</CardTitle>
-            <Users className="h-4 w-4 text-stone-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{clientsCount}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-full lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Mis Tareas ({myTasks.length})</CardTitle>
-            <CardDescription>Tareas asignadas a ti que requieren atención.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {myTasks.length > 0 ? (
-              <div className="space-y-4">
-                {myTasks.slice(0, 5).map(task => {
-                  const relatedCase = cases.find(c => c.id === task.caseId);
-                  return (
-                    <div key={task.id} className="flex items-start justify-between border-b border-stone-100 pb-4 last:border-0 last:pb-0">
-                      <div className="flex flex-col gap-1">
-                        <Link to={`/tareas`} className="font-medium text-stone-900 hover:underline">{task.title}</Link>
-                        {relatedCase && (
-                          <Link to={`/juicios/${relatedCase.id}`} className="text-xs text-stone-500 hover:underline">
-                            Exp. {relatedCase.caseNumber} - {relatedCase.title}
-                          </Link>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={cn(
-                          "text-xs px-2 py-0.5 rounded-full font-medium",
-                          task.priority === 'Urgente' ? "bg-red-100 text-red-700" :
-                          task.priority === 'Alta' ? "bg-orange-100 text-orange-700" :
-                          "bg-stone-100 text-stone-700"
-                        )}>
-                          {task.priority}
-                        </span>
-                        {task.dueDate && (
-                          <span className={cn("text-xs flex items-center gap-1", 
-                            isPast(parseISO(task.dueDate)) ? "text-red-500 font-medium" : "text-stone-500"
-                          )}>
-                            <Clock className="h-3 w-3" />
-                            {format(parseISO(task.dueDate), "d MMM", { locale: es })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-stone-500 text-sm">
-                No tienes tareas pendientes. ¡Buen trabajo!
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-full lg:col-span-3 flex flex-col min-h-0 overflow-hidden max-h-[500px] lg:max-h-none">
-          <CardHeader className="shrink-0">
-            <CardTitle>Actividad Reciente</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto pr-2">
-            <div className="space-y-6">
-              {recentLogs.map((log) => {
-                const user = users.find(u => u.id === log.userId);
-                const userName = user ? user.name : 'Alguien';
-                
-                return (
-                  <div key={log.id} className="flex gap-3">
-                    <div className="relative mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 border border-stone-200">
-                      <span className="text-xs font-medium text-stone-600">{userName.charAt(0)}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-sm text-stone-600">
-                        <span className="font-medium text-stone-900">{userName}</span> {log.action}
-                      </p>
-                      <time className="text-xs text-stone-400">
-                        {format(parseISO(log.timestamp), "d MMM, HH:mm", { locale: es })}
-                      </time>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+export const Dashboard = () => {
+  const { user } = useAuth(); const [data, setData] = useState<DashboardData | null>(null); const [error, setError] = useState<string | null>(null); const [loading, setLoading] = useState(true);
+  useEffect(() => { let active = true; void getDashboard().then((value) => { if (active) setData(value); }).catch((requestError) => { if (active) setError(errorMessage(requestError)); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, []);
+  if (loading) return <DashboardSkeleton />;
+  if (!data) return <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">{error}</div>;
+  const cards = [
+    { label: 'Juicios activos', value: data.kpis.activeCases, icon: Scale },
+    { label: 'Tareas abiertas', value: data.kpis.openTasks, detail: data.kpis.dueToday === null ? undefined : `${data.kpis.dueToday} para hoy`, icon: CheckSquare },
+    { label: 'Tareas vencidas', value: data.kpis.overdueTasks, icon: AlertCircle, alert: (data.kpis.overdueTasks ?? 0) > 0 },
+    { label: 'Clientes activos', value: data.kpis.activeClients, icon: Users },
+  ];
+  return <div className="space-y-6"><header><h1 className="text-3xl font-semibold">Inicio</h1><p className="text-stone-500">Bienvenido/a, {user?.name}. Estos datos vienen de la base del estudio.</p></header>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{cards.map(({ label, value, detail, icon: Icon, alert }) => <Card key={label} className={alert ? 'border-red-200' : ''}><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">{label}</CardTitle><Icon className={`h-4 w-4 ${alert ? 'text-red-500' : 'text-stone-500'}`} /></CardHeader><CardContent><p className={`text-2xl font-bold ${alert ? 'text-red-600' : ''}`}>{value ?? '—'}</p>{detail ? <p className="text-xs text-stone-500">{detail}</p> : null}</CardContent></Card>)}</div>
+    <div className="grid gap-4 lg:grid-cols-7"><Card className="lg:col-span-4"><CardHeader><CardTitle>Mis tareas ({data.myTasks.length})</CardTitle><CardDescription>Asignaciones abiertas ordenadas por vencimiento.</CardDescription></CardHeader><CardContent>{data.myTasks.length ? <div className="space-y-4">{data.myTasks.map((task) => <div key={task.id} className="flex justify-between gap-4 border-b pb-3 last:border-0"><div><Link to="/tareas" className="font-medium hover:underline">{task.title}</Link>{task.legalCase ? <Link to={`/juicios/${task.legalCase.id}`} className="block text-xs text-stone-500 hover:underline">{task.legalCase.caseNumber} · {task.legalCase.title}</Link> : null}</div><span className={`text-xs ${task.dueDate && new Date(task.dueDate) < new Date() ? 'font-medium text-red-600' : 'text-stone-500'}`}><Clock className="mr-1 inline h-3 w-3" />{due(task.dueDate)}</span></div>)}</div> : <p className="py-8 text-center text-sm text-stone-500">No tenés tareas pendientes.</p>}</CardContent></Card>
+      <Card className="lg:col-span-3"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>Actividad reciente</CardTitle><CardDescription>Movimientos relevantes del estudio.</CardDescription></div>{user?.permissions.includes('audit.read') ? <Link to="/actividad" className="text-sm font-medium text-stone-600 hover:text-stone-900 hover:underline">Ver todo</Link> : null}</div></CardHeader><CardContent>{data.activity.length ? <div className="space-y-5">{data.activity.map((item) => <div key={item.id} className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border bg-stone-100 text-xs">{item.actor?.name.charAt(0) ?? '?'}</span><div><p className="text-sm"><strong>{item.actor?.name ?? 'Sistema'}</strong> {auditActionLabel(item.action)}</p><time className="text-xs text-stone-400">{date(item.createdAt)}</time></div></div>)}</div> : <p className="py-8 text-center text-sm text-stone-500">Sin actividad visible.</p>}</CardContent></Card></div>
+  </div>;
 };
 
-// Helper inside file until we have a proper utility
-function cn(...classes: (string | undefined | null | false)[]) {
-  return classes.filter(Boolean).join(' ');
-}
+function DashboardSkeleton() { return <div aria-label="Cargando dashboard" className="animate-pulse space-y-6"><div className="h-16 w-72 rounded bg-stone-200" /><div className="grid gap-4 md:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-28 rounded-xl bg-stone-200" />)}</div><div className="h-80 rounded-xl bg-stone-200" /></div>; }

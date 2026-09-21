@@ -2,7 +2,7 @@
 
 ## Resumen
 
-El proyecto actual es una aplicación web de una sola página construida con React y Vite. No tiene servidor propio ni base de datos conectada: el estado de demostración se persiste en `localStorage`.
+El proyecto es una SPA React/Vite conectada por HTTP a la API Node/Express y PostgreSQL. Ya no contiene persistencia funcional en `localStorage` ni datos mock en el bundle productivo.
 
 ## Tecnologías en uso
 
@@ -16,10 +16,15 @@ El proyecto actual es una aplicación web de una sola página construida con Rea
 | Estilos | Tailwind CSS 4 | Utilidades de estilos y layout responsive. |
 | Componentes | shadcn/ui, Base UI y Radix-compatible primitives | Componentes locales reutilizables en `src/components/ui`. |
 | Iconos | Lucide React | Iconografía de la interfaz. |
-| Formularios de fecha | React Day Picker y date-fns | Calendarios, fechas y formato localizado. |
+| Formularios de fecha | React Day Picker e `Intl` | Calendarios y formato localizado. |
 | Notificaciones | Sonner | Toasts de éxito, error e información. |
 | Utilidades CSS | class-variance-authority, clsx, tailwind-merge | Variantes y composición segura de clases. |
-| Persistencia actual | localStorage | Estado serializado por `AppContext`. Solo apto para demo local. |
+| Persistencia | API REST + PostgreSQL | Estado validado, autorizado y auditable en backend. |
+| Tests unitarios/componentes | Vitest 5, Testing Library y jsdom | Verificación rápida de utilidades y componentes React. |
+| Tests E2E | Playwright 1.63 | Flujos reales en Chromium contra Vite. |
+| Cobertura | V8/LCOV | Señal orientativa, sin sustituir casos críticos. |
+| Hosting frontend | Vercel | Build Vite, dominio público y fallback de rutas SPA. |
+| Hosting backend | Dokploy sobre VPS | API, worker, PostgreSQL, archivos privados y ClamAV. |
 
 ## shadcn/ui como estándar de componentes
 
@@ -35,14 +40,14 @@ shadcn/ui no funciona como una biblioteca visual cerrada: los componentes se inc
 ## Arquitectura actual
 
 ```text
-React pages
+React pages/features
     ↓
-AppContext
+apiRequest (cookie HttpOnly + CSRF)
     ↓
-Datos mockeados iniciales + localStorage del navegador
+API Express / servicios / Prisma / PostgreSQL
 ```
 
-`AppContext` expone colecciones y operaciones de alta/actualización para contactos, expedientes, actuaciones, cuadernos, tareas y notas. Las pantallas consumen ese contexto directamente. Es útil para prototipado, pero no provee concurrencia, control de acceso, validaciones de servidor, backups ni trazabilidad confiable.
+Cada dominio tiene tipos y cliente API en `src/features`. `AuthContext` conserva únicamente el estado de sesión en memoria; los datos funcionales se obtienen de la API y la concurrencia se controla con versiones.
 
 ## Stack objetivo recomendado
 
@@ -66,12 +71,17 @@ Ejecutar desde la raíz de `Estudio-Guzman-`:
 npm install
 npm run dev
 npm run lint
+npm test
+npm run test:coverage
 npm run build
+npm run test:e2e
 npm run preview
 ```
 
+La primera ejecución E2E requiere `npx playwright install chromium`.
+
 Si Vite falla por una dependencia opcional de Rollup en macOS Apple Silicon, eliminar únicamente `node_modules` y `package-lock.json` dentro de la carpeta del proyecto, ejecutar `npm install` y luego `npm run dev`.
 
-## Dependencias que requieren revisión
+## Dependencias revisadas
 
-El `package.json` declara `@google/genai`, `dotenv` y `express`, pero no hay integración de servidor ni uso funcional de esas dependencias en el código relevado. Antes de usar o mantenerlas en producción, confirmar su propósito, versión y configuración de secretos.
+En Fase 12 se retiraron `@google/genai`, `motion`, `date-fns`, `dotenv`, `express` y `@types/express` porque no tenían uso funcional. El gate final incluye auditoría de runtime y build de producción.

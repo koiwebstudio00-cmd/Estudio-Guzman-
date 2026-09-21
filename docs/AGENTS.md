@@ -27,7 +27,7 @@ src/
 7. No incluir secretos, tokens, DNI/CUIT reales, documentos judiciales reales ni datos personales sensibles en el repositorio.
 8. No editar archivos generados, `node_modules` ni el lockfile de forma manual.
 9. Preservar los cambios ajenos del árbol de trabajo. Revisar `git status --short` antes y después de modificar código.
-10. Ejecutar `npm run lint` y, para cambios de interfaz o build, `npm run build` antes de dar por terminado un cambio cuando las dependencias estén disponibles.
+10. Ejecutar `npm run lint`, `npm test` y, para cambios de interfaz o build, `npm run build` antes de dar por terminado un cambio. Los flujos críticos además requieren `npm run test:e2e`.
 
 ## Convenciones de dominio
 
@@ -42,7 +42,7 @@ src/
 1. Describir brevemente el cambio y localizar las entidades y pantallas afectadas.
 2. Implementar el cambio mínimo coherente.
 3. Actualizar tipos, estado, mocks y documentación cuando el contrato cambie.
-4. Verificar con lint, build y una revisión visual si se modifica UI.
+4. Verificar con lint, tests, build y una revisión visual/E2E si se modifica UI.
 5. Actualizar `docs/PROGRESS.md` con el resultado, las decisiones y los pendientes que surjan.
 
 ## Definición de terminado

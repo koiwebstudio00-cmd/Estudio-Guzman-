@@ -1,201 +1,37 @@
-import React, { useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../store/AppContext';
+import { toast } from 'sonner';
+import { useAuth } from '../auth/AuthContext';
 import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { ArrowLeft } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { createCase, getCourts, getOffices } from '../features/cases/api';
+import type { CaseType, Court, Office } from '../features/cases/types';
+import { ContactSelector } from '../features/contacts/ContactSelector';
+import { getCatalogs } from '../features/contacts/api';
+import type { Catalogs } from '../features/contacts/types';
+import { getUsers } from '../features/team/api';
+import type { TeamUser } from '../features/team/types';
+import { ApiProblem } from '../lib/api';
 
-export const NewCase: React.FC = () => {
-  const navigate = useNavigate();
-  const { contacts, courts, offices, users, currentUser, addCase } = useAppStore();
+interface ParticipantRow { key: string; contactId: string; role: string; side: string; isClient: boolean }
+const newRow = (client = false): ParticipantRow => ({ key: crypto.randomUUID(), contactId: '', role: client ? 'CLAIMANT' : 'DEFENDANT', side: client ? 'OUR_SIDE' : 'COUNTERPART', isClient: client });
+const errorMessage = (error: unknown) => error instanceof ApiProblem ? error.message : 'No se pudo crear el expediente.';
 
-  const [formData, setFormData] = useState({
-    title: '',
-    caseNumber: '',
-    type: 'Laboral',
-    status: 'Activo',
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    courtId: '',
-    managementOfficeId: '',
-    clientId: '',
-    opponentId: '',
-    responsibleId: 'none',
-  });
-
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title || !formData.clientId || !formData.caseNumber) {
-      toast.error('Completá los campos obligatorios.');
-      return;
-    }
-
-    const newCase = addCase({
-      title: formData.title,
-      caseNumber: formData.caseNumber,
-      type: formData.type as any,
-      status: formData.status as any,
-      startDate: new Date(formData.startDate).toISOString(),
-      courtId: formData.courtId,
-      managementOfficeId: formData.managementOfficeId,
-      clientId: formData.clientId,
-      opponentId: formData.opponentId || undefined,
-      responsibleId: formData.responsibleId,
-    });
-
-    toast.success('Juicio creado exitosamente');
-    navigate(`/juicios/${newCase.id}`);
-  };
-
-  return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      <div className="flex items-center gap-2 mb-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/juicios')} className="-ml-3 text-stone-500">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Volver a Juicios
-        </Button>
-      </div>
-
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Nuevo Juicio</h1>
-        <p className="text-stone-500">Completá la información inicial del expediente.</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Información del expediente</CardTitle>
-            <CardDescription>Datos principales de la carátula y estado.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Carátula *</Label>
-                <Input id="title" required placeholder="Ej. Díaz c/ Panini S.A." value={formData.title} onChange={e => handleChange('title', e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="caseNumber">Número de expediente *</Label>
-                <Input id="caseNumber" required placeholder="Ej. 123456/2026" value={formData.caseNumber} onChange={e => handleChange('caseNumber', e.target.value)} />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Fuero</Label>
-                <Select value={formData.type} onValueChange={v => handleChange('type', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Laboral">Laboral</SelectItem>
-                    <SelectItem value="Civil y Comercial">Civil y Comercial</SelectItem>
-                    <SelectItem value="Penal">Penal</SelectItem>
-                    <SelectItem value="Familia">Familia</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Estado</Label>
-                <Select value={formData.status} onValueChange={v => handleChange('status', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Activo">Activo</SelectItem>
-                    <SelectItem value="Pendiente">Pendiente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha de inicio</Label>
-                <Input type="date" value={formData.startDate} onChange={e => handleChange('startDate', e.target.value)} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Partes</CardTitle>
-            <CardDescription>Seleccioná o creá las personas/empresas involucradas.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Cliente / Actor *</Label>
-                <Select value={formData.clientId} onValueChange={v => handleChange('clientId', v)}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
-                  <SelectContent>
-                    {(contacts || []).map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName || ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-stone-500">Podés crear nuevos contactos desde el módulo Contactos.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Contraparte / Demandado</Label>
-                <Select value={formData.opponentId} onValueChange={v => handleChange('opponentId', v)}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar demandado (opcional)" /></SelectTrigger>
-                  <SelectContent>
-                    {(contacts || []).map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName || ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Radicación y Asignación</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Juzgado / Tribunal</Label>
-                <Select value={formData.courtId} onValueChange={v => handleChange('courtId', v)}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar juzgado" /></SelectTrigger>
-                  <SelectContent>
-                    {(courts || []).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Oficina de Gestión</Label>
-                <Select value={formData.managementOfficeId} onValueChange={v => handleChange('managementOfficeId', v)}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar OGA" /></SelectTrigger>
-                  <SelectContent>
-                    {(offices || []).map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="space-y-2 mt-4 max-w-sm">
-              <Label>Responsable interno</Label>
-              <Select value={formData.responsibleId} onValueChange={v => handleChange('responsibleId', v)}>
-                <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin asignar</SelectItem>
-                  {(users || []).map(u => <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/juicios')}>Cancelar</Button>
-          <Button type="submit">Crear Juicio</Button>
-        </div>
-      </form>
-    </div>
-  );
+export const NewCase = () => {
+  const navigate = useNavigate(); const { user } = useAuth();
+  const [catalogs, setCatalogs] = useState<Catalogs | null>(null); const [courts, setCourts] = useState<Court[]>([]); const [offices, setOffices] = useState<Office[]>([]); const [users, setUsers] = useState<TeamUser[]>([]);
+  const [participants, setParticipants] = useState<ParticipantRow[]>(() => [newRow(true), newRow(false)]); const [courtId, setCourtId] = useState(''); const [officeId, setOfficeId] = useState(''); const [responsibleId, setResponsibleId] = useState(user?.id ?? ''); const [submitting, setSubmitting] = useState(false);
+  useEffect(() => { let active = true; void Promise.all([getCatalogs(), getCourts(), getOffices(), getUsers()]).then(([nextCatalogs, nextCourts, nextOffices, nextUsers]) => { if (!active) return; setCatalogs(nextCatalogs); setCourts(nextCourts); setOffices(nextOffices); setUsers(nextUsers.filter((item) => item.status === 'ACTIVE')); setResponsibleId((current) => current || user?.id || nextUsers[0]?.id || ''); }).catch((error) => toast.error(errorMessage(error))); return () => { active = false; }; }, [user?.id]);
+  const updateParticipant = (key: string, patch: Partial<ParticipantRow>) => setParticipants((current) => current.map((item) => item.key === key ? { ...item, ...patch } : item));
+  const availableOffices = courtId ? offices.filter((office) => office.courts.some((court) => court.id === courtId)) : offices;
+  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); const valid = participants.filter((item) => item.contactId); if (!valid.some((item) => item.isClient)) { toast.error('Debe existir al menos una parte cliente.'); return; } if (!responsibleId) { toast.error('Seleccioná un responsable principal.'); return; } setSubmitting(true); try { const created = await createCase({ caseNumber: String(form.get('caseNumber')), title: String(form.get('title')), type: String(form.get('type')) as CaseType, status: String(form.get('status')) as 'PENDING' | 'ACTIVE', startDate: String(form.get('startDate')), courtId: courtId || null, managementOfficeId: officeId || null, participants: valid.map(({ contactId, role, side, isClient }, index) => ({ contactId, role, side, isClient, sortOrder: index })), representations: [], team: [{ userId: responsibleId, role: 'PRIMARY' }] }); toast.success('Juicio creado.'); navigate(`/juicios/${created.id}`); } catch (error) { toast.error(errorMessage(error)); } finally { setSubmitting(false); } }
+  return <div className="mx-auto max-w-4xl space-y-6 pb-12"><Button variant="ghost" onClick={() => navigate('/juicios')}><ArrowLeft className="h-4 w-4" /> Volver a juicios</Button><div><h1 className="text-3xl font-semibold">Nuevo juicio</h1><p className="text-stone-500">Alta atómica del expediente, sus partes y equipo.</p></div>
+    <form onSubmit={submit} className="space-y-6"><Card><CardHeader><CardTitle>Expediente</CardTitle><CardDescription>Carátula, número y estado inicial.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="case-title">Carátula</Label><Input id="case-title" name="title" required /></div><div><Label htmlFor="case-number">Número</Label><Input id="case-number" name="caseNumber" required /></div><div><Label htmlFor="case-type">Fuero</Label><select id="case-type" name="type" className="mt-1 h-9 w-full rounded-md border bg-white px-3">{catalogs?.caseTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div><div><Label htmlFor="case-status">Estado inicial</Label><select id="case-status" name="status" className="mt-1 h-9 w-full rounded-md border bg-white px-3"><option value="ACTIVE">Activo</option><option value="PENDING">Pendiente</option></select></div><div><Label htmlFor="case-start">Fecha de inicio</Label><Input id="case-start" name="startDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div></CardContent></Card>
+      <Card><CardHeader className="flex-row items-start justify-between"><div><CardTitle>Partes</CardTitle><CardDescription>Se admiten múltiples partes y clientes representados.</CardDescription></div><Button type="button" variant="outline" size="sm" onClick={() => setParticipants((current) => [...current, newRow()])}><Plus className="h-4 w-4" /> Agregar</Button></CardHeader><CardContent className="space-y-4">{participants.map((item, index) => <div key={item.key} className="grid gap-3 rounded-lg border p-4 md:grid-cols-[2fr_1fr_1fr_auto]"><ContactSelector label={`Parte ${index + 1}`} value={item.contactId} onChange={(contactId) => updateParticipant(item.key, { contactId })} required={index === 0} /><div><Label>Rol</Label><select aria-label={`Rol parte ${index + 1}`} className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={item.role} onChange={(event) => updateParticipant(item.key, { role: event.target.value })}>{catalogs?.participantRoles.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div><div><Label>Lado</Label><select aria-label={`Lado parte ${index + 1}`} className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={item.side} onChange={(event) => updateParticipant(item.key, { side: event.target.value })}>{catalogs?.partySides.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><label className="mt-2 flex gap-2 text-sm"><input type="checkbox" checked={item.isClient} onChange={(event) => updateParticipant(item.key, { isClient: event.target.checked })} /> Es cliente</label></div><Button aria-label={`Quitar parte ${index + 1}`} type="button" variant="ghost" size="icon" disabled={participants.length === 1} onClick={() => setParticipants((current) => current.filter(({ key }) => key !== item.key))}><Trash2 className="h-4 w-4" /></Button></div>)}</CardContent></Card>
+      <Card><CardHeader><CardTitle>Radicación y equipo</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><Label htmlFor="court">Juzgado</Label><select id="court" className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={courtId} onChange={(event) => { setCourtId(event.target.value); setOfficeId(''); }}><option value="">Sin juzgado</option>{courts.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}</select></div><div><Label htmlFor="office">Oficina</Label><select id="office" className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={officeId} onChange={(event) => setOfficeId(event.target.value)}><option value="">Sin oficina</option>{availableOffices.map((office) => <option key={office.id} value={office.id}>{office.name}</option>)}</select></div><div><Label htmlFor="responsible">Responsable principal</Label><select id="responsible" className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={responsibleId} onChange={(event) => setResponsibleId(event.target.value)} required><option value="">Seleccionar…</option>{users.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div></CardContent></Card>
+      <div className="flex justify-end gap-3"><Button type="button" variant="outline" onClick={() => navigate('/juicios')}>Cancelar</Button><Button type="submit" disabled={submitting}>{submitting ? 'Creando…' : 'Crear juicio'}</Button></div>
+    </form></div>;
 };

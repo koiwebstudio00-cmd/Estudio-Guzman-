@@ -1,157 +1,31 @@
-import React, { useState } from 'react';
-import { useAppStore } from '../store/AppContext';
-import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, ArrowRight } from 'lucide-react';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Filter, Plus, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { Badge } from '../components/ui/badge';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { getCatalogs } from '../features/contacts/api';
+import type { Catalogs } from '../features/contacts/types';
+import { getCases } from '../features/cases/api';
+import type { LegalCase } from '../features/cases/types';
+import { ApiProblem } from '../lib/api';
 
-export const CasesList: React.FC = () => {
-  const { cases, contacts, users, courts } = useAppStore();
-  const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Todos');
-  const [typeFilter, setTypeFilter] = useState('Todos');
+const statusClasses: Record<string, string> = { ACTIVE: 'bg-green-100 text-green-800', PENDING: 'bg-amber-100 text-amber-800', SUSPENDED: 'bg-orange-100 text-orange-800', CLOSED: 'bg-stone-200 text-stone-800', ARCHIVED: 'bg-stone-100 text-stone-500' };
+const errorMessage = (error: unknown) => error instanceof ApiProblem ? error.message : 'No se pudieron cargar los expedientes.';
 
-  const filteredCases = cases.filter(c => {
-    const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase()) || c.caseNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'Todos' || c.status === statusFilter;
-    const matchesType = typeFilter === 'Todos' || c.type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
-  });
-
-  const getClientName = (id: string) => {
-    const contact = contacts.find(c => c.id === id);
-    return contact ? (contact.firstName + (contact.lastName ? ` ${contact.lastName}` : '')) : 'Desconocido';
-  };
-
-  const getUserName = (id: string) => {
-    const user = users.find(u => u.id === id);
-    return user ? user.name : 'Sin asignar';
-  };
-
-  const getCourtName = (id?: string) => {
-    if (!id) return '-';
-    const court = courts.find(c => c.id === id);
-    return court ? court.name : '-';
-  };
-
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'Activo': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-100';
-      case 'Pendiente': return 'bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100';
-      case 'Cerrado': return 'bg-stone-200 text-stone-800 border-stone-300 hover:bg-stone-200';
-      case 'Archivado': return 'bg-stone-100 text-stone-500 border-stone-200 hover:bg-stone-100';
-      default: return 'bg-stone-100 text-stone-800';
-    }
-  };
-
-  return (
-    <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Juicios</h1>
-          <p className="text-stone-500">Gestión de expedientes y causas activas.</p>
-        </div>
-        <Button onClick={() => navigate('/juicios/nuevo')} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nuevo Juicio
-        </Button>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
-          <Input 
-            placeholder="Buscar por carátula o expediente..." 
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="h-4 w-4 text-stone-400" />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos los estados</SelectItem>
-              <SelectItem value="Activo">Activo</SelectItem>
-              <SelectItem value="Pendiente">Pendiente</SelectItem>
-              <SelectItem value="Cerrado">Cerrado</SelectItem>
-              <SelectItem value="Archivado">Archivado</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Fuero" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos los fueros</SelectItem>
-              <SelectItem value="Laboral">Laboral</SelectItem>
-              <SelectItem value="Civil y Comercial">Civil y Comercial</SelectItem>
-              <SelectItem value="Penal">Penal</SelectItem>
-              <SelectItem value="Familia">Familia</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden flex-1 shadow-sm">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-stone-50">
-              <TableRow>
-                <TableHead className="w-[120px]">Expediente</TableHead>
-                <TableHead className="min-w-[250px]">Carátula</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead className="hidden md:table-cell">Juzgado</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="hidden lg:table-cell">Responsable</TableHead>
-                <TableHead className="text-right">Acción</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCases.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-stone-500">
-                    No se encontraron juicios que coincidan con la búsqueda.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredCases.map((c) => (
-                  <TableRow key={c.id} className="group cursor-pointer hover:bg-stone-50" onClick={() => navigate(`/juicios/${c.id}`)}>
-                    <TableCell className="font-medium text-stone-600">{c.caseNumber}</TableCell>
-                    <TableCell className="font-semibold text-stone-900">{c.title}</TableCell>
-                    <TableCell>{getClientName(c.clientId)}</TableCell>
-                    <TableCell className="hidden md:table-cell text-stone-500 text-sm truncate max-w-[200px]" title={getCourtName(c.courtId)}>
-                      {getCourtName(c.courtId)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getStatusColor(c.status)}>
-                        {c.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-stone-500">
-                      {getUserName(c.responsibleId)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="group-hover:bg-stone-200">
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    </div>
-  );
+export const CasesList = () => {
+  const navigate = useNavigate(); const { can } = useAuth();
+  const [cases, setCases] = useState<LegalCase[]>([]); const [catalogs, setCatalogs] = useState<Catalogs | null>(null);
+  const [query, setQuery] = useState(''); const [status, setStatus] = useState(''); const [type, setType] = useState('');
+  const [nextCursor, setNextCursor] = useState<string | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
+  async function load(reset = true) { setLoading(true); setError(null); try { const [page, nextCatalogs] = await Promise.all([getCases({ q: query || undefined, status: status || undefined, type: type || undefined, cursor: reset ? undefined : nextCursor ?? undefined, limit: 25 }), catalogs ? Promise.resolve(catalogs) : getCatalogs()]); setCases((current) => reset ? page.data : [...current, ...page.data]); setNextCursor(page.meta.nextCursor); setCatalogs(nextCatalogs); } catch (requestError) { setError(errorMessage(requestError)); } finally { setLoading(false); } }
+  useEffect(() => { const timer = window.setTimeout(() => { void load(true); }, 250); return () => window.clearTimeout(timer); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [query, status, type]);
+  const label = (group: keyof Catalogs, value: string) => catalogs?.[group]?.find((item) => item.value === value)?.label ?? value;
+  return <div className="flex h-full flex-col space-y-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-3xl font-semibold">Juicios</h1><p className="text-stone-500">Expedientes, partes y responsables del estudio.</p></div>{can('cases.create') ? <Button onClick={() => navigate('/juicios/nuevo')}><Plus className="h-4 w-4" /> Nuevo juicio</Button> : null}</div>
+    <div className="flex flex-col items-center gap-3 rounded-xl border bg-white p-4 sm:flex-row"><div className="relative w-full flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" /><Input aria-label="Buscar expedientes" className="pl-9" placeholder="Carátula o número…" value={query} onChange={(event) => setQuery(event.target.value)} /></div><Filter className="hidden h-4 w-4 text-stone-400 sm:block" /><select aria-label="Estado" className="h-9 rounded-md border bg-white px-3" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos los estados</option>{catalogs?.caseStatuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><select aria-label="Fuero" className="h-9 rounded-md border bg-white px-3" value={type} onChange={(event) => setType(event.target.value)}><option value="">Todos los fueros</option>{catalogs?.caseTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
+    {error ? <div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</div> : null}
+    <div className="flex-1 overflow-hidden rounded-xl border bg-white"><Table><TableHeader><TableRow><TableHead>Expediente</TableHead><TableHead>Carátula</TableHead><TableHead>Clientes</TableHead><TableHead>Juzgado</TableHead><TableHead>Estado</TableHead><TableHead>Responsable</TableHead><TableHead /></TableRow></TableHeader><TableBody>{cases.map((legalCase) => <TableRow key={legalCase.id}><TableCell>{legalCase.caseNumber}</TableCell><TableCell className="font-semibold">{legalCase.title}</TableCell><TableCell>{legalCase.participants.filter((item) => item.isClient && !item.activeUntil).map((item) => item.contact.displayName).join(', ') || '—'}</TableCell><TableCell>{legalCase.court?.name ?? '—'}</TableCell><TableCell><Badge className={statusClasses[legalCase.status]}>{label('caseStatuses', legalCase.status)}</Badge></TableCell><TableCell>{legalCase.team.find((item) => item.role === 'PRIMARY' && !item.unassignedAt)?.user.name ?? '—'}</TableCell><TableCell><Button aria-label={`Abrir ${legalCase.caseNumber}`} variant="ghost" size="icon" onClick={() => navigate(`/juicios/${legalCase.id}`)}><ArrowRight className="h-4 w-4" /></Button></TableCell></TableRow>)}</TableBody></Table>{loading ? <p className="p-4 text-center text-stone-500">Cargando…</p> : null}{!loading && cases.length === 0 ? <p className="p-8 text-center text-stone-500">No se encontraron expedientes.</p> : null}{!loading && nextCursor ? <div className="border-t p-3 text-center"><Button variant="outline" onClick={() => void load(false)}>Cargar más</Button></div> : null}</div>
+  </div>;
 };

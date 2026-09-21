@@ -1,29 +1,30 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Scale, CheckSquare, Users, UserSquare, MessageSquarePlus, X } from 'lucide-react';
-import { useAppStore } from '../../store/AppContext';
+import { History, Home, Scale, CheckSquare, Users, UserSquare, MessageSquarePlus, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
+import { useAuth } from '../../auth/AuthContext';
+import { createFeedback } from '../../features/feedback/api';
 
 export const Sidebar: React.FC<{ isOpen: boolean; setIsOpen: (val: boolean) => void }> = ({ isOpen, setIsOpen }) => {
   const [suggestionOpen, setSuggestionOpen] = React.useState(false);
-  const { currentUser } = useAppStore();
+  const [suggestion, setSuggestion] = React.useState(''); const [submitting, setSubmitting] = React.useState(false);
+  const { can, user } = useAuth();
 
   const navItems = [
-    { name: 'Inicio', path: '/', icon: Home },
-    { name: 'Juicios', path: '/juicios', icon: Scale },
-    { name: 'Tareas', path: '/tareas', icon: CheckSquare },
-    { name: 'Contactos', path: '/contactos', icon: Users },
-    { name: 'Equipo', path: '/equipo', icon: UserSquare },
-  ];
+    { name: 'Inicio', path: '/', icon: Home, permission: 'dashboard.read' },
+    { name: 'Juicios', path: '/juicios', icon: Scale, permission: 'cases.read' },
+    { name: 'Tareas', path: '/tareas', icon: CheckSquare, permission: 'tasks.read' },
+    { name: 'Contactos', path: '/contactos', icon: Users, permission: 'contacts.read' },
+    { name: 'Equipo', path: '/equipo', icon: UserSquare, permission: 'users.read' },
+    { name: 'Actividad', path: '/actividad', icon: History, permission: 'audit.read' },
+    { name: 'Sugerencias', path: '/sugerencias', icon: MessageSquarePlus, permission: 'feedback.manage' },
+  ].filter((item) => can(item.permission));
 
-  const handleSuggestionSubmit = () => {
-    setSuggestionOpen(false);
-    toast.success('Sugerencia enviada correctamente.');
-  };
+  const handleSuggestionSubmit = async () => { if (suggestion.trim().length < 5) return; setSubmitting(true); try { await createFeedback(suggestion.trim()); setSuggestion(''); setSuggestionOpen(false); toast.success('Sugerencia enviada correctamente.'); } catch { toast.error('No se pudo enviar la sugerencia.'); } finally { setSubmitting(false); } };
 
   const navClass = ({ isActive }: { isActive: boolean }) => cn(
     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors font-medium text-sm",
@@ -76,11 +77,11 @@ export const Sidebar: React.FC<{ isOpen: boolean; setIsOpen: (val: boolean) => v
             <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Usuario Actual</p>
             <div className="flex items-center gap-2 mt-1">
               <div className="h-8 w-8 rounded-full bg-stone-200 flex items-center justify-center text-sm font-medium text-stone-700">
-                {currentUser?.name.charAt(0)}
+                {user?.name.charAt(0)}
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-stone-900 leading-none">{currentUser?.name}</span>
-                <span className="text-xs text-stone-500 mt-0.5 leading-none">{currentUser?.role}</span>
+                <span className="text-sm font-medium text-stone-900 leading-none">{user?.name}</span>
+                <span className="text-xs text-stone-500 mt-0.5 leading-none">{user?.role.name}</span>
               </div>
             </div>
           </div>
@@ -96,11 +97,11 @@ export const Sidebar: React.FC<{ isOpen: boolean; setIsOpen: (val: boolean) => v
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Textarea placeholder="Escribe tu sugerencia aquí..." className="min-h-[100px]" />
+            <Textarea aria-label="Sugerencia" placeholder="Escribe tu sugerencia aquí..." className="min-h-[100px]" value={suggestion} onChange={(event) => setSuggestion(event.target.value)} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSuggestionOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSuggestionSubmit}>Enviar sugerencia</Button>
+            <Button onClick={() => void handleSuggestionSubmit()} disabled={submitting || suggestion.trim().length < 5}>Enviar sugerencia</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

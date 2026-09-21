@@ -32,6 +32,7 @@ La aplicación es una SPA en React con rutas para Inicio, Juicios, Nuevo Juicio,
 - [Funcionalidades](FEATURES.md)
 - [Stack tecnológico](STACK.md)
 - [Progreso del proyecto](PROGRESS.md)
+- [Despliegue en Vercel](DEPLOYMENT.md)
 - [Instrucciones para agentes](AGENTS.md)
 - [Instrucciones para Claude](CLAUDE.md)
 - [Modelo de datos](../Modelo%20de%20datos%20Estudio%20Guzman.docx)
