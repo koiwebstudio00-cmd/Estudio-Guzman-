@@ -7,7 +7,7 @@ import { setCsrfToken } from '@/lib/api';
 const permissions = ['dashboard.read', 'contacts.read', 'contacts.create', 'contacts.update', 'contacts.delete', 'catalogs.read'];
 const user = { id: 'user-1', email: 'admin@example.com', name: 'Admin', avatarUrl: null, status: 'ACTIVE', version: 1, lastLoginAt: null, createdAt: '', updatedAt: '', role: { id: 'role-1', code: 'HEAD', name: 'Jefe' }, permissions };
 const catalogs = { contactKinds: [{ value: 'PERSON', label: 'Persona' }, { value: 'ORGANIZATION', label: 'Organización' }], contactCategories: [{ value: 'CLIENT', label: 'Cliente' }], contactChannels: [], addressTypes: [] };
-const contact = { id: 'contact-1', kind: 'PERSON', displayName: 'Ana Pérez', firstName: 'Ana', lastName: 'Pérez', legalName: null, documentNumber: '12345678', taxId: null, notes: null, version: 1, categories: ['CLIENT'], channels: [{ id: 'channel-1', type: 'EMAIL', label: null, value: 'ana@example.com', isPrimary: true, sortOrder: 0 }], addresses: [], relations: { cases: 2, representations: 0 } };
+const contact = { id: 'contact-1', kind: 'PERSON', displayName: 'Ana Pérez', firstName: 'Ana', lastName: 'Pérez', legalName: null, documentNumber: '12345678', taxId: null, notes: null, version: 1, categories: ['CLIENT'], channels: [{ id: 'channel-1', type: 'EMAIL', label: null, value: 'ana@example.com', isPrimary: true, sortOrder: 0 }, { id: 'channel-2', type: 'PHONE', label: null, value: '+54 381 555-1000', isPrimary: true, sortOrder: 1 }], addresses: [], relations: { cases: 2, representations: 0 } };
 
 beforeEach(() => {
   setCsrfToken(null); window.history.pushState({}, '', '/contactos');
@@ -39,5 +39,12 @@ describe('Contacts', () => {
     await userEvent.type(screen.getByLabelText('Apellido'), 'Ruiz');
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     expect(await screen.findByRole('heading', { name: 'Juan Ruiz' })).toBeVisible();
+  });
+
+  it('shows the existing phone number when editing a contact', async () => {
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Ana Pérez' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar' }));
+    expect(screen.getByLabelText('Teléfono')).toHaveValue('+54 381 555-1000');
   });
 });

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '@/App';
 import { setCsrfToken } from '@/lib/api';
@@ -37,5 +38,13 @@ describe('Team', () => {
     expect(screen.getAllByText('admin@example.com')).toHaveLength(2);
     expect(screen.getByRole('button', { name: /Agregar integrante/ })).toBeVisible();
     expect(screen.getByRole('button', { name: /Crear rol/ })).toBeVisible();
+  });
+
+  it('allows an administrator to generate a secure initial password', async () => {
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', { name: /Agregar integrante/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Generar contraseña segura' }));
+    const password = screen.getByLabelText('Contraseña inicial') as HTMLInputElement;
+    expect(password.value).toHaveLength(20);
   });
 });
