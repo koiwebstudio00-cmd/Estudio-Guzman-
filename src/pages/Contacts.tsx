@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { createContact, deleteContact, getCatalogs, getContact, getContacts, updateContact } from '../features/contacts/api';
+import { createContact, createContactChannel, deleteContact, deleteContactChannel, getCatalogs, getContact, getContacts, updateContact, updateContactChannel } from '../features/contacts/api';
 import type { Catalogs, Contact, ContactCategory, ContactInput, ContactKind } from '../features/contacts/types';
 import { ApiProblem } from '../lib/api';
 
@@ -105,20 +105,33 @@ function ContactFormDialog({ open, contact, catalogs, onOpenChange, onSaved }: {
     event.preventDefault(); const form = new FormData(event.currentTarget); setSubmitting(true);
     const categories = form.getAll('categories').map(String) as ContactCategory[];
     const empty = (name: string) => String(form.get(name) ?? '').trim() || null;
+    const phone = empty('phone');
     const input: ContactInput = { kind, firstName: empty('firstName'), lastName: empty('lastName'), legalName: empty('legalName'), documentNumber: empty('documentNumber'), taxId: empty('taxId'), notes: empty('notes'), categories, channels: [] };
     if (!contact) {
-      const email = empty('email'); const phone = empty('phone');
+      const email = empty('email');
       input.channels = [...(email ? [{ type: 'EMAIL' as const, value: email, isPrimary: true }] : []), ...(phone ? [{ type: 'PHONE' as const, value: phone, isPrimary: true }] : [])];
     }
-    try { const saved = contact ? await updateContact(contact.id, { version: contact.version, firstName: input.firstName, lastName: input.lastName, legalName: input.legalName, documentNumber: input.documentNumber, taxId: input.taxId, notes: input.notes, categories }) : await createContact(input); onSaved(saved); onOpenChange(false); toast.success(contact ? 'Contacto actualizado.' : 'Contacto creado.'); }
+    try {
+      let saved: Contact;
+      if (contact) {
+        const existingPhone = contact.channels.find((channel) => channel.type === 'PHONE' && channel.isPrimary) ?? contact.channels.find((channel) => channel.type === 'PHONE');
+        await updateContact(contact.id, { version: contact.version, firstName: input.firstName, lastName: input.lastName, legalName: input.legalName, documentNumber: input.documentNumber, taxId: input.taxId, notes: input.notes, categories });
+        if (existingPhone && phone) await updateContactChannel(contact.id, existingPhone.id, { value: phone, isPrimary: true });
+        else if (existingPhone) await deleteContactChannel(contact.id, existingPhone.id);
+        else if (phone) await createContactChannel(contact.id, { type: 'PHONE', value: phone, isPrimary: true });
+        saved = await getContact(contact.id);
+      } else saved = await createContact(input);
+      onSaved(saved); onOpenChange(false); toast.success(contact ? 'Contacto actualizado.' : 'Contacto creado.');
+    }
     catch (requestError) { toast.error(errorMessage(requestError)); } finally { setSubmitting(false); }
   }
   const selectedCategories = new Set(contact?.categories ?? ['CLIENT']);
+  const existingPhone = contact?.channels.find((channel) => channel.type === 'PHONE' && channel.isPrimary) ?? contact?.channels.find((channel) => channel.type === 'PHONE');
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><form onSubmit={submit} className="space-y-4"><DialogHeader><DialogTitle>{contact ? 'Editar contacto' : 'Nuevo contacto'}</DialogTitle><DialogDescription>Los documentos, CUIT y canales se normalizan para evitar duplicados.</DialogDescription></DialogHeader>
     <div><Label htmlFor="contact-kind">Tipo</Label><select id="contact-kind" className="mt-1 h-9 w-full rounded-md border bg-white px-3" value={kind} disabled={Boolean(contact)} onChange={(event) => setKind(event.target.value as ContactKind)}>{catalogs?.contactKinds.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
     {kind === 'PERSON' ? <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="first-name">Nombre</Label><Input id="first-name" name="firstName" defaultValue={contact?.firstName ?? ''} required /></div><div><Label htmlFor="last-name">Apellido</Label><Input id="last-name" name="lastName" defaultValue={contact?.lastName ?? ''} /></div></div> : <div><Label htmlFor="legal-name">Razón social</Label><Input id="legal-name" name="legalName" defaultValue={contact?.legalName ?? ''} required /></div>}
     <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="document-number">DNI / documento</Label><Input id="document-number" name="documentNumber" defaultValue={contact?.documentNumber ?? ''} /></div><div><Label htmlFor="tax-id">CUIT</Label><Input id="tax-id" name="taxId" defaultValue={contact?.taxId ?? ''} /></div></div>
-    {!contact ? <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="contact-email">Email</Label><Input id="contact-email" name="email" type="email" /></div><div><Label htmlFor="contact-phone">Teléfono</Label><Input id="contact-phone" name="phone" /></div></div> : null}
+    <div className="grid gap-4 sm:grid-cols-2">{!contact ? <div><Label htmlFor="contact-email">Email</Label><Input id="contact-email" name="email" type="email" /></div> : null}<div><Label htmlFor="contact-phone">Teléfono</Label><Input id="contact-phone" name="phone" type="tel" defaultValue={existingPhone?.value ?? ''} /></div></div>
     <fieldset><legend className="mb-2 text-sm font-medium">Categorías</legend><div className="grid gap-2 sm:grid-cols-3">{catalogs?.contactCategories.map((option) => <label key={option.value} className="flex items-center gap-2 rounded border p-2 text-sm"><input type="checkbox" name="categories" value={option.value} defaultChecked={selectedCategories.has(option.value as ContactCategory)} />{option.label}</label>)}</div></fieldset>
     <div><Label htmlFor="contact-notes">Notas</Label><textarea id="contact-notes" name="notes" defaultValue={contact?.notes ?? ''} className="mt-1 min-h-20 w-full rounded-md border p-3" /></div>
     <DialogFooter><Button type="submit" disabled={submitting}>{submitting ? 'Guardando…' : 'Guardar'}</Button></DialogFooter>

@@ -1,5 +1,5 @@
 import { apiRequest } from '../../lib/api';
-import type { Catalogs, Contact, ContactInput } from './types';
+import type { Catalogs, Contact, ContactChannel, ContactInput } from './types';
 
 export interface ContactPage { data: Contact[]; meta: { nextCursor: string | null } }
 
@@ -12,4 +12,7 @@ export const getContacts = (filters: { q?: string; kind?: string; category?: str
 export const getContact = async (contactId: string) => (await apiRequest<{ data: Contact }>(`/contacts/${contactId}`)).data;
 export const createContact = async (input: ContactInput) => (await apiRequest<{ data: Contact }>('/contacts', { method: 'POST', body: JSON.stringify(input) })).data;
 export const updateContact = async (contactId: string, input: Partial<Omit<ContactInput, 'kind' | 'channels' | 'addresses'>> & { version: number }) => (await apiRequest<{ data: Contact }>(`/contacts/${contactId}`, { method: 'PATCH', body: JSON.stringify(input) })).data;
+export const createContactChannel = async (contactId: string, input: { type: 'PHONE'; value: string; isPrimary: boolean }) => (await apiRequest<{ data: ContactChannel }>(`/contacts/${contactId}/channels`, { method: 'POST', body: JSON.stringify(input) })).data;
+export const updateContactChannel = async (contactId: string, channelId: string, input: { value: string; isPrimary: boolean }) => (await apiRequest<{ data: ContactChannel }>(`/contacts/${contactId}/channels/${channelId}`, { method: 'PATCH', body: JSON.stringify(input) })).data;
+export const deleteContactChannel = (contactId: string, channelId: string) => apiRequest<void>(`/contacts/${contactId}/channels/${channelId}`, { method: 'DELETE' });
 export const deleteContact = (contactId: string) => apiRequest<void>(`/contacts/${contactId}`, { method: 'DELETE' });

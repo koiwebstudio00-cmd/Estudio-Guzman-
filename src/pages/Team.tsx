@@ -10,6 +10,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { createRole, createUser, getRoles, getUsers, updateRole, updateRolePermissions, updateUser } from '../features/team/api';
 import type { TeamRole, TeamUser, UserStatus } from '../features/team/types';
+import { generateSecurePassword } from '../features/team/password';
 import { ApiProblem } from '../lib/api';
 import { getTeamMetrics } from '../features/dashboard/api';
 import type { TeamMetric } from '../features/dashboard/types';
@@ -90,18 +91,21 @@ export const Team = () => {
 
 function UserDialog({ open, user, roles, onOpenChange, onSaved }: { open: boolean; user: TeamUser | null; roles: TeamRole[]; onOpenChange(open: boolean): void; onSaved(user: TeamUser): void }) {
   const [submitting, setSubmitting] = useState(false);
+  const [password, setPassword] = useState('');
+  useEffect(() => { if (open && !user) setPassword(''); }, [open, user]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setSubmitting(true);
     try {
-      const saved = user ? await updateUser(user.id, { version: user.version, name: String(form.get('name')), roleId: String(form.get('roleId')), status: String(form.get('status')) as UserStatus }) : await createUser({ email: String(form.get('email')), name: String(form.get('name')), roleId: String(form.get('roleId')) });
-      onSaved(saved); onOpenChange(false); toast.success(user ? 'Usuario actualizado.' : 'Invitación creada.');
+      const saved = user ? await updateUser(user.id, { version: user.version, name: String(form.get('name')), roleId: String(form.get('roleId')), status: String(form.get('status')) as UserStatus }) : await createUser({ email: String(form.get('email')), name: String(form.get('name')), roleId: String(form.get('roleId')), password });
+      onSaved(saved); onOpenChange(false); toast.success(user ? 'Usuario actualizado.' : 'Usuario creado.');
     } catch (error) { toast.error(message(error)); } finally { setSubmitting(false); }
   }
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><form onSubmit={submit} className="space-y-4"><DialogHeader><DialogTitle>{user ? 'Administrar usuario' : 'Agregar integrante'}</DialogTitle><DialogDescription>{user ? 'Cambiar rol o estado revoca las sesiones.' : 'Se genera una invitación segura, nunca una contraseña en claro.'}</DialogDescription></DialogHeader>
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><form onSubmit={submit} className="space-y-4"><DialogHeader><DialogTitle>{user ? 'Administrar usuario' : 'Agregar integrante'}</DialogTitle><DialogDescription>{user ? 'Cambiar rol o estado revoca las sesiones.' : 'Definí una contraseña inicial y compartila de forma segura con el nuevo integrante.'}</DialogDescription></DialogHeader>
     <div><Label htmlFor="team-name">Nombre</Label><Input id="team-name" name="name" defaultValue={user?.name} required /></div>
     {!user && <div><Label htmlFor="team-email">Email</Label><Input id="team-email" name="email" type="email" required /></div>}
+    {!user && <div><div className="mb-1 flex items-center justify-between gap-3"><Label htmlFor="team-password">Contraseña inicial</Label><Button type="button" variant="outline" size="sm" onClick={() => setPassword(generateSecurePassword())}>Generar contraseña segura</Button></div><Input id="team-password" name="password" type="text" autoComplete="new-password" minLength={8} maxLength={200} value={password} onChange={(event) => setPassword(event.target.value)} required /><p className="mt-1 text-xs text-stone-500">Copiala antes de guardar para enviársela al usuario.</p></div>}
     <div><Label htmlFor="team-role">Rol</Label><select id="team-role" name="roleId" defaultValue={user?.role.id ?? roles[0]?.id} className="mt-1 h-9 w-full rounded-md border bg-white px-3" required>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></div>
     {user && <div><Label htmlFor="team-status">Estado</Label><select id="team-status" name="status" defaultValue={user.status} className="mt-1 h-9 w-full rounded-md border bg-white px-3">{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>}
     <DialogFooter><Button type="submit" disabled={submitting}>{submitting ? 'Guardando…' : 'Guardar'}</Button></DialogFooter>
