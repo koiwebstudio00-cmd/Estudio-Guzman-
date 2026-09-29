@@ -44,7 +44,16 @@ test('logs in, restores the session after refresh and logs out', async ({ page }
 
   await page.goto('/');
   await page.getByLabel('Email').fill('admin@example.com');
-  await page.getByLabel('Contraseña').fill('ClaveSegura123');
+  const passwordInput = page.getByLabel('Contraseña', { exact: true });
+  await passwordInput.fill('ClaveSegura123');
+  await expect(passwordInput).toHaveAttribute('type', 'password');
+
+  await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
+  await expect(passwordInput).toHaveAttribute('type', 'text');
+  await expect(passwordInput).toHaveValue('ClaveSegura123');
+
+  await page.getByRole('button', { name: 'Ocultar contraseña' }).click();
+  await expect(passwordInput).toHaveAttribute('type', 'password');
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
   await expect(page.getByText('Juicios activos', { exact: true })).toBeVisible();
 

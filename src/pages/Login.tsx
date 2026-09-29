@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { LoaderCircle, LockKeyhole } from 'lucide-react';
+import { Eye, EyeOff, LoaderCircle, LockKeyhole } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { ApiProblem } from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -14,6 +14,7 @@ export function Login() {
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,16 +74,33 @@ export function Login() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                minLength={8}
-                disabled={submitting}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="pr-10"
+                  required
+                  minLength={8}
+                  disabled={submitting}
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-md text-stone-500 transition-colors hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setShowPassword((current) => !current)}
+                  disabled={submitting}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={submitting || status === 'loading'}>
               {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LockKeyhole className="h-4 w-4" />}
