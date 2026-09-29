@@ -25,7 +25,7 @@ describe('Cases', () => {
     await userEvent.type(court, 'trabajo iii');
     expect(screen.getByRole('option', { name: 'Juzgado del Trabajo - III Nominación' })).toBeVisible();
     await userEvent.click(screen.getByRole('option', { name: 'Juzgado del Trabajo - III Nominación' }));
-    expect(court).toHaveValue('Juzgado del Trabajo - III Nominación');
+    expect(screen.getByLabelText('Juzgado')).toHaveValue('Juzgado del Trabajo - III Nominación');
     expect(office).toHaveAttribute('name', 'managementOfficeName');
     expect(Array.from(office.options, ({ value }) => value)).toEqual(['', '1', '2', '3', '4', '5']);
   });
