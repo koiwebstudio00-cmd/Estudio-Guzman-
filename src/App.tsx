@@ -37,7 +37,7 @@ export default function App() {
             <Route path="/equipo" element={<Team />} />
             <Route path="/perfil" element={<Profile />} />
             <Route path="/actividad" element={<PermissionRoute permission="audit.read"><Activity /></PermissionRoute>} />
-            <Route path="/sugerencias" element={<Feedback />} />
+            <Route path="/sugerencias" element={<PermissionRoute anyOf={['feedback.create', 'feedback.manage']}><Feedback /></PermissionRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Layout>

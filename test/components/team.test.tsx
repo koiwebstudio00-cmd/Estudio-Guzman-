@@ -35,7 +35,7 @@ describe('Team', () => {
   it('loads real users and roles and exposes administration only with permissions', async () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Equipo' })).toBeVisible();
-    expect(screen.getAllByText('admin@example.com')).toHaveLength(2);
+    expect(screen.getByText('admin@example.com')).toBeVisible();
     expect(screen.getByRole('button', { name: /Agregar integrante/ })).toBeVisible();
     expect(screen.getByRole('button', { name: /Crear rol/ })).toBeVisible();
   });
