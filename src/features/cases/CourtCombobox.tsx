@@ -20,7 +20,6 @@ export function CourtCombobox({ id, name, options, placeholder, maxLength }: Cou
     value={selectedValue}
     inputValue={inputValue}
     filter={matchesSearch}
-    limit={8}
     autoHighlight
     onInputValueChange={(nextValue, details) => {
       setInputValue(nextValue);
@@ -38,9 +37,9 @@ export function CourtCombobox({ id, name, options, placeholder, maxLength }: Cou
       <Combobox.Positioner sideOffset={4} align="start" className="isolate z-50">
         <Combobox.Popup className="z-50 max-h-[min(20rem,var(--available-height))] w-[min(36rem,calc(100vw-2rem))] min-w-(--anchor-width) origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
           <Combobox.Empty className="text-sm text-muted-foreground"><span className="block px-3 py-3">Sin coincidencias. Podés ingresar el texto libremente.</span></Combobox.Empty>
-          <Combobox.List className="max-h-[min(20rem,var(--available-height))] overflow-y-auto p-1">
-            {(court: string, index: number) => <Combobox.Item key={court} value={court} index={index} className="relative flex cursor-default items-center rounded-md py-2 pr-8 pl-3 text-sm outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground">
-              <span className="leading-snug">{court}</span>
+          <Combobox.List className={({ empty }) => empty ? 'h-0 overflow-hidden' : 'h-72 max-h-(--available-height) overflow-y-auto overscroll-contain'}>
+            {(court: string, index: number) => <Combobox.Item key={court} value={court} index={index} className="relative flex h-9 cursor-default items-center rounded-md pr-8 pl-3 text-sm outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground">
+              <span className="truncate">{court}</span>
               <Combobox.ItemIndicator className="absolute right-2 flex size-4 items-center justify-center"><Check className="size-4" /></Combobox.ItemIndicator>
             </Combobox.Item>}
           </Combobox.List>
