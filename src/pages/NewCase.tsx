@@ -19,6 +19,61 @@ import { ApiProblem } from '../lib/api';
 interface ParticipantRow { key: string; contactId: string; role: string; side: string; isClient: boolean }
 const newRow = (client = false): ParticipantRow => ({ key: crypto.randomUUID(), contactId: '', role: client ? 'CLAIMANT' : 'DEFENDANT', side: client ? 'OUR_SIDE' : 'COUNTERPART', isClient: client });
 const errorMessage = (error: unknown) => error instanceof ApiProblem ? error.message : 'No se pudo crear el expediente.';
+const courtOptions = [
+  'Juzgado Civil y Comercial Común - I Nominación',
+  'Juzgado Civil y Comercial Común - II Nominación',
+  'Juzgado Civil y Comercial Común - III Nominación',
+  'Juzgado Civil y Comercial Común - IV Nominación',
+  'Juzgado Civil y Comercial Común - V Nominación',
+  'Juzgado Civil y Comercial Común - VI Nominación',
+  'Juzgado Civil y Comercial Común - VII Nominación',
+  'Juzgado Civil y Comercial Común - VIII Nominación',
+  'Juzgado Civil y Comercial Común - IX Nominación',
+  'Juzgado Civil y Comercial Común - X Nominación',
+  'Juzgado Civil y Comercial Común - XI Nominación',
+  'Juzgado Civil y Comercial Común - XII Nominación',
+  'Juzgado Civil y Comercial Común - XIII Nominación',
+  'Juzgado Civil y Comercial Común - XIV Nominación',
+  'Juzgado Civil y Comercial Común - XV Nominación',
+  'Juzgado Civil y Comercial Común - XVI Nominación',
+  'Juzgado del Trabajo - I Nominación',
+  'Juzgado del Trabajo - II Nominación',
+  'Juzgado del Trabajo - III Nominación',
+  'Juzgado del Trabajo - IV Nominación',
+  'Juzgado del Trabajo - V Nominación',
+  'Juzgado del Trabajo - VI Nominación',
+  'Juzgado del Trabajo - VII Nominación',
+  'Juzgado del Trabajo - VIII Nominación',
+  'Juzgado del Trabajo - IX Nominación',
+  'Juzgado del Trabajo - X Nominación',
+  'Juzgado del Trabajo - XI Nominación',
+  'Juzgado del Trabajo - XII Nominación',
+  'Juzgado Civil en Familia y Sucesiones - I Nominación',
+  'Juzgado Civil en Familia y Sucesiones - II Nominación',
+  'Juzgado Civil en Familia y Sucesiones - III Nominación',
+  'Juzgado Civil en Familia y Sucesiones - IV Nominación',
+  'Juzgado Civil en Familia y Sucesiones - V Nominación',
+  'Juzgado Civil en Familia y Sucesiones - VI Nominación',
+  'Juzgado Civil en Familia y Sucesiones - VII Nominación',
+  'Juzgado Civil en Familia y Sucesiones - VIII Nominación',
+  'Juzgado Civil en Familia y Sucesiones - IX Nominación',
+  'Juzgado Civil en Familia y Sucesiones - X Nominación',
+  'Juzgado Civil en Familia y Sucesiones - XI Nominación',
+  'Juzgado Civil en Familia y Sucesiones - XII Nominación',
+  'Juzgado Civil en Familia y Sucesiones - XIII Nominación',
+  'Juzgado Civil en Documentos y Locaciones - I Nominación',
+  'Juzgado Civil en Documentos y Locaciones - II Nominación',
+  'Juzgado Civil en Documentos y Locaciones - III Nominación',
+  'Juzgado Civil en Documentos y Locaciones - IV Nominación',
+  'Juzgado Civil en Documentos y Locaciones - V Nominación',
+  'Juzgado Civil en Documentos y Locaciones - VI Nominación',
+  'Juzgado Civil en Documentos y Locaciones - VII Nominación',
+  'Juzgado Civil en Documentos y Locaciones - VIII Nominación',
+  'Juzgado Civil en Documentos y Locaciones - IX Nominación',
+  'Juzgado Civil en Cobros y Apremios - I Nominación',
+  'Juzgado Civil en Cobros y Apremios - II Nominación',
+] as const;
+const managementOfficeOptions = ['1', '2', '3', '4', '5'] as const;
 
 export const NewCase = () => {
   const navigate = useNavigate(); const { user } = useAuth();
@@ -30,7 +85,7 @@ export const NewCase = () => {
   return <div className="mx-auto max-w-4xl space-y-6 pb-12"><Button variant="ghost" onClick={() => navigate('/juicios')}><ArrowLeft className="h-4 w-4" /> Volver a juicios</Button><div><h1 className="text-3xl font-semibold">Nuevo juicio</h1><p className="text-stone-500">Alta atómica del expediente, sus partes y equipo.</p></div>
     <form onSubmit={submit} className="space-y-6"><Card><CardHeader><CardTitle>Expediente</CardTitle><CardDescription>Carátula, número y estado inicial.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="case-title">Carátula</Label><Input id="case-title" name="title" required /></div><div><Label htmlFor="case-number">Número</Label><Input id="case-number" name="caseNumber" required /></div><div><Label htmlFor="case-type">Fuero</Label><select id="case-type" name="type" className="mt-1 h-9 w-full rounded-md border bg-white px-3">{catalogs?.caseTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div><div><Label htmlFor="case-status">Estado inicial</Label><select id="case-status" name="status" className="mt-1 h-9 w-full rounded-md border bg-white px-3"><option value="ACTIVE">Activo</option><option value="PENDING">Pendiente</option></select></div><div><Label htmlFor="case-start">Fecha de inicio</Label><Input id="case-start" name="startDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div></CardContent></Card>
       <Card><CardHeader className="flex-row items-start justify-between"><div><CardTitle>Partes</CardTitle><CardDescription>Se admiten múltiples partes y clientes representados.</CardDescription></div><Button type="button" variant="outline" size="sm" onClick={() => setParticipants((current) => [...current, newRow()])}><Plus className="h-4 w-4" /> Agregar</Button></CardHeader><CardContent className="space-y-4">{participants.map((item, index) => <div key={item.key} className="grid gap-3 rounded-lg border p-4 md:grid-cols-[2fr_1fr_1fr_auto]"><ContactSelector label={`Parte ${index + 1}`} value={item.contactId} onChange={(contactId) => updateParticipant(item.key, { contactId })} required={index === 0} /><div><Label>Rol</Label><select aria-label={`Rol parte ${index + 1}`} className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={item.role} onChange={(event) => updateParticipant(item.key, { role: event.target.value })}>{catalogs?.participantRoles.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div><div><Label>Lado</Label><select aria-label={`Lado parte ${index + 1}`} className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={item.side} onChange={(event) => updateParticipant(item.key, { side: event.target.value })}>{catalogs?.partySides.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><label className="mt-2 flex gap-2 text-sm"><input type="checkbox" checked={item.isClient} onChange={(event) => updateParticipant(item.key, { isClient: event.target.checked })} /> Es cliente</label></div><Button aria-label={`Quitar parte ${index + 1}`} type="button" variant="ghost" size="icon" disabled={participants.length === 1} onClick={() => setParticipants((current) => current.filter(({ key }) => key !== item.key))}><Trash2 className="h-4 w-4" /></Button></div>)}</CardContent></Card>
-      <Card><CardHeader><CardTitle>Radicación y equipo</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><Label htmlFor="court-name">Juzgado</Label><Input id="court-name" name="courtName" placeholder="Ingresar juzgado" maxLength={240} /></div><div><Label htmlFor="office-name">Oficina</Label><Input id="office-name" name="managementOfficeName" placeholder="Ingresar oficina" maxLength={240} /></div><div><Label htmlFor="responsible">Responsable principal</Label><select id="responsible" className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={responsibleId} onChange={(event) => setResponsibleId(event.target.value)} required><option value="">Seleccionar…</option>{users.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div></CardContent></Card>
+      <Card><CardHeader><CardTitle>Radicación y equipo</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><Label htmlFor="court-name">Juzgado</Label><Input id="court-name" name="courtName" list="court-options" placeholder="Buscar juzgado…" maxLength={240} autoComplete="off" /><datalist id="court-options">{courtOptions.map((court) => <option key={court} value={court} />)}</datalist></div><div><Label htmlFor="office-name">OFICINA DE GESTION ASOCIADA</Label><select id="office-name" name="managementOfficeName" className="mt-1 h-9 w-full rounded-md border bg-white px-3"><option value="">Seleccionar…</option>{managementOfficeOptions.map((office) => <option key={office} value={office}>{office}</option>)}</select></div><div><Label htmlFor="responsible">Responsable principal</Label><select id="responsible" className="mt-1 h-9 w-full rounded-md border bg-white px-2" value={responsibleId} onChange={(event) => setResponsibleId(event.target.value)} required><option value="">Seleccionar…</option>{users.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div></CardContent></Card>
       <div className="flex justify-end gap-3"><Button type="button" variant="outline" onClick={() => navigate('/juicios')}>Cancelar</Button><Button type="submit" disabled={submitting}>{submitting ? 'Creando…' : 'Crear juicio'}</Button></div>
     </form></div>;
 };

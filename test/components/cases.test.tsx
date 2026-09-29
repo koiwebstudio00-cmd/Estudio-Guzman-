@@ -14,11 +14,16 @@ beforeEach(() => { setCsrfToken(null); window.history.pushState({}, '', '/juicio
 describe('Cases', () => {
   it('loads the real list and navigates to a detail with multiple-domain data', async () => { render(<App />); expect(await screen.findByText('Pérez c/ Empresa')).toBeVisible(); expect(screen.getByText('Ana Pérez')).toBeVisible(); await userEvent.click(screen.getByRole('button', { name: 'Abrir 123/2026' })); expect(await screen.findByRole('heading', { name: 'Pérez c/ Empresa' })).toBeVisible(); expect(screen.getByText('Responsable')).toBeVisible(); await userEvent.click(screen.getByRole('tab', { name: 'Partes y equipo' })); expect(screen.getAllByText('Responsable')).toHaveLength(2); expect(screen.getAllByText('Admin').length).toBeGreaterThan(0); });
 
-  it('uses free-text fields for court and office in a new case', async () => {
+  it('offers searchable courts and the associated management offices in a new case', async () => {
     window.history.pushState({}, '', '/juicios/nuevo');
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Nuevo juicio' })).toBeVisible();
-    expect(screen.getByLabelText('Juzgado')).toHaveAttribute('name', 'courtName');
-    expect(screen.getByLabelText('Oficina')).toHaveAttribute('name', 'managementOfficeName');
+    const court = screen.getByLabelText('Juzgado');
+    const office = screen.getByLabelText('OFICINA DE GESTION ASOCIADA') as HTMLSelectElement;
+    expect(court).toHaveAttribute('name', 'courtName');
+    expect(court).toHaveAttribute('list', 'court-options');
+    expect(document.querySelectorAll('#court-options option')).toHaveLength(52);
+    expect(office).toHaveAttribute('name', 'managementOfficeName');
+    expect(Array.from(office.options, ({ value }) => value)).toEqual(['', '1', '2', '3', '4', '5']);
   });
 });
