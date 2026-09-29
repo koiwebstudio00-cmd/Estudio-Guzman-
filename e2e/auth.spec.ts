@@ -13,7 +13,7 @@ test('logs in, restores the session after refresh and logs out', async ({ page }
   let authenticated = false;
 
   await page.route('**/api/v1/dashboard', (route) => route.fulfill({ json: { data: { range: { from: null, to: null }, kpis: { activeCases: 0, openTasks: 0, overdueTasks: 0, dueToday: 0, activeClients: 0 }, myTasks: [], activity: [] } } }));
-  await page.route('**/api/v1/notifications', (route) => route.fulfill({ json: { data: [], meta: { nextCursor: null, unreadCount: 0 } } }));
+  await page.route('**/api/v1/notifications*', (route) => route.fulfill({ json: { data: [], meta: { nextCursor: null, unreadCount: 0 } } }));
 
   await page.route('**/api/v1/auth/**', async (route) => {
     const url = new URL(route.request().url());

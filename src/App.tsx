@@ -16,6 +16,7 @@ import { Activity } from './pages/Activity';
 import { PermissionRoute } from './auth/PermissionRoute';
 import { Profile } from './pages/Profile';
 import { ContactDetail } from './pages/ContactDetail';
+import { Notifications } from './pages/Notifications';
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/contactos/:id" element={<PermissionRoute permission="contacts.read"><ContactDetail /></PermissionRoute>} />
             <Route path="/equipo" element={<Team />} />
             <Route path="/perfil" element={<Profile />} />
+            <Route path="/notificaciones" element={<Notifications />} />
             <Route path="/actividad" element={<PermissionRoute permission="audit.read"><Activity /></PermissionRoute>} />
             <Route path="/sugerencias" element={<PermissionRoute anyOf={['feedback.create', 'feedback.manage']}><Feedback /></PermissionRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
