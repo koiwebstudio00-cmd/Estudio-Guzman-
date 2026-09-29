@@ -22,6 +22,8 @@ describe('Cases', () => {
     const office = screen.getByLabelText('OFICINA DE GESTION ASOCIADA') as HTMLSelectElement;
     expect(court).toHaveAttribute('name', 'courtName');
     expect(court).toHaveAttribute('role', 'combobox');
+    await userEvent.click(court);
+    expect(screen.getAllByRole('option')).toHaveLength(8);
     await userEvent.type(court, 'trabajo iii');
     expect(screen.getByRole('option', { name: 'Juzgado del Trabajo - III Nominación' })).toBeVisible();
     await userEvent.click(screen.getByRole('option', { name: 'Juzgado del Trabajo - III Nominación' }));
