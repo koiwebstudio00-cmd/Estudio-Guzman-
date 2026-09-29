@@ -73,7 +73,12 @@ export const Sidebar: React.FC<{ isOpen: boolean; setIsOpen: (val: boolean) => v
             Sugerir mejora
           </button>
           
-          <div className="mt-4 px-3 flex flex-col gap-1">
+          <NavLink
+            to="/perfil"
+            aria-label={`Ver perfil de ${user?.name ?? 'usuario'}`}
+            className="mt-4 flex flex-col gap-1 rounded-lg px-3 py-2 transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400"
+            onClick={() => setIsOpen(false)}
+          >
             <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Usuario Actual</p>
             <div className="flex items-center gap-2 mt-1">
               <div className="h-8 w-8 rounded-full bg-stone-200 flex items-center justify-center text-sm font-medium text-stone-700">
@@ -84,7 +89,7 @@ export const Sidebar: React.FC<{ isOpen: boolean; setIsOpen: (val: boolean) => v
                 <span className="text-xs text-stone-500 mt-0.5 leading-none">{user?.role.name}</span>
               </div>
             </div>
-          </div>
+          </NavLink>
         </div>
       </aside>
 

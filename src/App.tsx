@@ -14,6 +14,8 @@ import { Login } from './pages/Login';
 import { Feedback } from './pages/Feedback';
 import { Activity } from './pages/Activity';
 import { PermissionRoute } from './auth/PermissionRoute';
+import { Profile } from './pages/Profile';
+import { ContactDetail } from './pages/ContactDetail';
 
 export default function App() {
   return (
@@ -31,7 +33,9 @@ export default function App() {
             <Route path="/juicios/:id" element={<CaseDetail />} />
             <Route path="/tareas" element={<Tasks />} />
             <Route path="/contactos" element={<Contacts />} />
+            <Route path="/contactos/:id" element={<PermissionRoute permission="contacts.read"><ContactDetail /></PermissionRoute>} />
             <Route path="/equipo" element={<Team />} />
+            <Route path="/perfil" element={<Profile />} />
             <Route path="/actividad" element={<PermissionRoute permission="audit.read"><Activity /></PermissionRoute>} />
             <Route path="/sugerencias" element={<Feedback />} />
             <Route path="*" element={<Navigate to="/" replace />} />
