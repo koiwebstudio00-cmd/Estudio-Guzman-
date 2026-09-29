@@ -43,6 +43,7 @@ test('registers an action and refreshes the unified case timeline', async ({ pag
     subCaseTypes: [], subCaseStatuses: [],
   };
   let actionCreated = false;
+  let createdDocumentAt = '';
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -53,6 +54,7 @@ test('registers an action and refreshes the unified case timeline', async ({ pag
     if (url.pathname.endsWith('/cases/case-1/subcases')) return route.fulfill({ json: { data: [] } });
     if (url.pathname.endsWith('/cases/case-1/actions') && request.method() === 'POST') {
       actionCreated = true;
+      createdDocumentAt = String((request.postDataJSON() as { documentAt: string }).documentAt);
       return route.fulfill({ status: 201, json: { data: { id: 'action-1', ...request.postDataJSON() } } });
     }
     if (url.pathname.endsWith('/cases/case-1/timeline')) {
@@ -73,8 +75,15 @@ test('registers an action and refreshes the unified case timeline', async ({ pag
   await page.getByRole('button', { name: 'Nueva actuación' }).click();
   await page.getByLabel('Título').fill('Demanda presentada');
   await page.getByLabel('Tipo').selectOption('FILING');
-  await page.getByLabel('Fecha y hora').fill('2026-05-01T10:00');
+  await page.getByRole('button', { name: 'Hoy' }).click();
+  const today = await page.evaluate(() => {
+    const value = new Date();
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  });
+  await expect(page.getByLabel('Fecha')).toHaveValue(today);
+  await page.getByLabel('Fecha').fill('2026-05-01');
   await page.getByRole('button', { name: 'Registrar' }).click();
+  expect(createdDocumentAt).toMatch(/^2026-05-01T/);
   await expect(page.getByText('Demanda presentada')).toBeVisible();
   await expect(page.getByText('Admin · Presentación')).toBeVisible();
 });
