@@ -1,31 +1,21 @@
 import { useEffect, useState } from 'react';
-import { FileText, LogOut, Menu, Scale, Search, User, UsersRound } from 'lucide-react';
+import { FileText, Menu, Scale, Search, User } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { globalSearch } from '../../features/dashboard/api';
 import type { SearchResult } from '../../features/dashboard/types';
 import { NotificationsButton } from '../../features/notifications/NotificationsButton';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 export const Header = ({ onMenuClick }: { onMenuClick: () => void }) => {
-  const { user, logout, logoutAll } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState(''); const [results, setResults] = useState<SearchResult[]>([]); const [searching, setSearching] = useState(false); const [searchError, setSearchError] = useState(false);
 
   useEffect(() => { if (query.trim().length < 2) { setResults([]); setSearching(false); setSearchError(false); return; } let active = true; const timer = window.setTimeout(() => { setSearching(true); setSearchError(false); void globalSearch(query).then((items) => { if (active) setResults(items); }).catch(() => { if (active) setSearchError(true); }).finally(() => { if (active) setSearching(false); }); }, 250); return () => { active = false; window.clearTimeout(timer); }; }, [query]);
   const open = (result: SearchResult) => { setQuery(''); setResults([]); navigate(result.path); };
-
-  const handleLogout = async (allSessions = false) => {
-    try {
-      if (allSessions) await logoutAll();
-      else await logout();
-      navigate('/login', { replace: true });
-    } catch {
-      toast.error('No se pudo cerrar la sesión correctamente.');
-    }
-  };
 
   return (
     <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 md:px-6 shrink-0">
@@ -50,29 +40,18 @@ export const Header = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
       <div className="flex items-center gap-3">
         <NotificationsButton />
-        <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium text-stone-800">{user?.name}</p>
-          <p className="text-xs text-stone-500">{user?.email}</p>
-        </div>
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          aria-label="Cerrar todas las sesiones"
-          title="Cerrar todas las sesiones"
-          onClick={() => void handleLogout(true)}
+          className="h-auto gap-3 px-2 py-1"
+          aria-label={`Abrir mi cuenta de ${user?.name ?? 'usuario'}`}
+          onClick={() => navigate('/perfil')}
         >
-          <UsersRound className="h-5 w-5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Cerrar sesión"
-          title="Cerrar sesión"
-          onClick={() => void handleLogout(false)}
-        >
-          <LogOut className="h-5 w-5" />
+          <Avatar className="h-9 w-9">
+            {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
+            <AvatarFallback>{user?.name.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <span className="hidden text-left sm:block"><span className="block text-sm font-medium text-stone-800">{user?.name}</span><span className="block text-xs font-normal text-stone-500">{user?.role.name}</span></span>
         </Button>
       </div>
     </header>

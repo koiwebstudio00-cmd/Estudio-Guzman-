@@ -57,7 +57,7 @@ test('logs in, restores the session after refresh and logs out', async ({ page }
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
   await expect(page.getByText('Juicios activos', { exact: true })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Ver perfil de Admin Test' }).click();
+  await page.getByRole('button', { name: 'Abrir mi cuenta de Admin Test' }).click();
   await expect(page.getByRole('heading', { name: 'Mi perfil' })).toBeVisible();
   await expect(page.getByText('admin@example.com').last()).toBeVisible();
   await page.getByRole('link', { name: 'Inicio' }).click();
