@@ -21,8 +21,11 @@ describe('Cases', () => {
     const court = screen.getByLabelText('Juzgado');
     const office = screen.getByLabelText('OFICINA DE GESTION ASOCIADA') as HTMLSelectElement;
     expect(court).toHaveAttribute('name', 'courtName');
-    expect(court).toHaveAttribute('list', 'court-options');
-    expect(document.querySelectorAll('#court-options option')).toHaveLength(52);
+    expect(court).toHaveAttribute('role', 'combobox');
+    await userEvent.type(court, 'trabajo iii');
+    expect(screen.getByRole('option', { name: 'Juzgado del Trabajo - III Nominación' })).toBeVisible();
+    await userEvent.click(screen.getByRole('option', { name: 'Juzgado del Trabajo - III Nominación' }));
+    expect(court).toHaveValue('Juzgado del Trabajo - III Nominación');
     expect(office).toHaveAttribute('name', 'managementOfficeName');
     expect(Array.from(office.options, ({ value }) => value)).toEqual(['', '1', '2', '3', '4', '5']);
   });
