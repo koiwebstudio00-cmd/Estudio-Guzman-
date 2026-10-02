@@ -21,6 +21,13 @@ Estados permitidos: **Hecho**, **En curso**, **Pendiente**, **Bloqueado**.
 
 ## Registro de avances
 
+### 2026-10-02 — Edición de perfiles y contraseñas — Hecho
+
+- Cada usuario puede actualizar nombre, email y avatar desde “Mi perfil” usando optimistic locking.
+- El cambio de contraseña propia exige la contraseña actual y cierra todas las sesiones para requerir un nuevo ingreso.
+- Los usuarios con `users.manage` pueden editar los datos y asignar una nueva contraseña a otro integrante desde “Equipo”.
+- Las contraseñas nunca vuelven al frontend ni se incorporan a auditoría; los cambios administrativos revocan las sesiones afectadas.
+
 ### 2026-09-21 — Página de Actividad — Hecho
 
 - Se agregó la ruta protegida `/actividad`, visible únicamente para usuarios con `audit.read`.

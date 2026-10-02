@@ -5,7 +5,7 @@ export const getUsers = async () => (await apiRequest<{ data: TeamUser[] }>('/us
 export const getRoles = async () => (await apiRequest<{ data: TeamRole[] }>('/roles')).data;
 export const createUser = async (input: { email: string; name: string; roleId: string; password: string }) =>
   (await apiRequest<{ data: TeamUser }>('/users', { method: 'POST', body: JSON.stringify(input) })).data;
-export const updateUser = async (userId: string, input: { version: number; name?: string; roleId?: string; status?: UserStatus }) =>
+export const updateUser = async (userId: string, input: { version: number; email?: string; name?: string; roleId?: string; status?: UserStatus; password?: string }) =>
   (await apiRequest<{ data: TeamUser }>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(input) })).data;
 export const createRole = async (input: { code: string; name: string; description?: string; permissionCodes: string[] }) =>
   (await apiRequest<{ data: TeamRole }>('/roles', { method: 'POST', body: JSON.stringify(input) })).data;
