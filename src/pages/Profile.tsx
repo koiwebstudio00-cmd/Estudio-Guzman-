@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../auth/AuthContext';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { ApiProblem } from '../lib/api';
+import { AvatarPicker } from '../features/team/AvatarPicker';
 
 const permissionLabels: Record<string, string> = {
   'dashboard.read': 'Ver inicio',
@@ -36,6 +37,8 @@ export function Profile() {
   const { user, updateProfile, changePassword } = useAuth();
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
+  useEffect(() => { setAvatarUrl(user?.avatarUrl ?? ''); }, [user?.avatarUrl]);
   if (!user) return null;
 
   async function submitProfile(event: FormEvent<HTMLFormElement>) {
@@ -47,7 +50,7 @@ export function Profile() {
         version: user.version,
         name: String(form.get('name')),
         email: String(form.get('email')),
-        avatarUrl: String(form.get('avatarUrl')).trim() || null,
+        avatarUrl: avatarUrl || null,
       });
       toast.success('Perfil actualizado.');
     } catch (error) {
@@ -90,7 +93,7 @@ export function Profile() {
           <form key={user.version} onSubmit={submitProfile} className="space-y-4">
             <div><Label htmlFor="profile-name">Nombre</Label><Input id="profile-name" name="name" defaultValue={user.name} minLength={2} maxLength={160} required /></div>
             <div><Label htmlFor="profile-email">Email</Label><Input id="profile-email" name="email" type="email" defaultValue={user.email} maxLength={320} required /></div>
-            <div><Label htmlFor="profile-avatar">URL del avatar</Label><Input id="profile-avatar" name="avatarUrl" type="url" defaultValue={user.avatarUrl ?? ''} maxLength={2000} placeholder="https://…" /></div>
+            <AvatarPicker value={avatarUrl} onChange={setAvatarUrl} />
             <Button type="submit" disabled={savingProfile}>{savingProfile ? 'Guardando…' : 'Guardar datos'}</Button>
           </form>
         </CardContent></Card>

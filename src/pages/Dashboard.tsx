@@ -3,6 +3,7 @@ import { AlertCircle, CheckSquare, Clock, Scale, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { ActorAvatar } from '../components/ActorAvatar';
 import { getDashboard } from '../features/dashboard/api';
 import type { DashboardData } from '../features/dashboard/types';
 import { auditActionLabel } from '../features/audit/labels';
@@ -40,7 +41,7 @@ export const Dashboard = () => {
           <div className="flex items-start justify-between gap-3"><div><CardTitle>Actividad reciente</CardTitle><CardDescription>Movimientos relevantes del estudio.</CardDescription></div>{user?.permissions.includes('audit.read') ? <Link to="/actividad" className="text-sm font-medium text-stone-600 hover:text-stone-900 hover:underline">Ver todo</Link> : null}</div>
         </CardHeader>
         <CardContent aria-label="Lista de actividad reciente" className="min-h-0 flex-1 overflow-y-auto">
-          {data.activity.length ? <div className="space-y-5">{data.activity.map((item) => <div key={item.id} className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border bg-stone-100 text-xs">{item.actor?.name.charAt(0) ?? '?'}</span><div><p className="text-sm"><strong>{item.actor?.name ?? 'Sistema'}</strong> {auditActionLabel(item.action)}</p><time className="text-xs text-stone-400">{date(item.createdAt)}</time></div></div>)}</div> : <p className="py-8 text-center text-sm text-stone-500">Sin actividad visible.</p>}
+          {data.activity.length ? <div className="space-y-5">{data.activity.map((item) => <div key={item.id} className="flex gap-3"><ActorAvatar name={item.actor?.name ?? 'Sistema'} avatarUrl={item.actor?.avatarUrl ?? null} /><div><p className="text-sm"><strong>{item.actor?.name ?? 'Sistema'}</strong> {auditActionLabel(item.action)}</p><time className="text-xs text-stone-400">{date(item.createdAt)}</time></div></div>)}</div> : <p className="py-8 text-center text-sm text-stone-500">Sin actividad visible.</p>}
         </CardContent>
       </Card>
     </div>

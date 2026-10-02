@@ -11,6 +11,7 @@ import { Label } from '../components/ui/label';
 import { createRole, createUser, getRoles, getUsers, updateRole, updateRolePermissions, updateUser } from '../features/team/api';
 import type { TeamRole, TeamUser, UserStatus } from '../features/team/types';
 import { generateSecurePassword } from '../features/team/password';
+import { AvatarPicker } from '../features/team/AvatarPicker';
 import { ApiProblem } from '../lib/api';
 import { getTeamMetrics } from '../features/dashboard/api';
 import type { TeamMetric } from '../features/dashboard/types';
@@ -67,7 +68,7 @@ export const Team = () => {
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
         {users.map((member) => <Card key={member.id}>
           <CardHeader className="flex flex-row items-start justify-between">
-            <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-full bg-stone-100 font-semibold">{member.name.charAt(0).toUpperCase()}</div><div><CardTitle>{member.name}</CardTitle><p className="text-sm text-stone-500">{member.email}</p></div></div>
+            <div className="flex items-center gap-3">{member.avatarUrl ? <img src={member.avatarUrl} alt="" className="h-11 w-11 rounded-full border object-cover" /> : <div className="grid h-11 w-11 place-items-center rounded-full bg-stone-100 font-semibold">{member.name.charAt(0).toUpperCase()}</div>}<div><CardTitle>{member.name}</CardTitle><p className="text-sm text-stone-500">{member.email}</p></div></div>
             <Badge variant={member.status === 'ACTIVE' ? 'secondary' : 'destructive'}>{statusLabels[member.status]}</Badge>
           </CardHeader>
           <CardContent className="flex items-center justify-between"><div><p className="font-medium">{member.role.name}</p><p className="text-xs text-stone-500">{member.permissions.length} permisos</p></div>
@@ -92,19 +93,21 @@ export const Team = () => {
 function UserDialog({ open, user, roles, onOpenChange, onSaved }: { open: boolean; user: TeamUser | null; roles: TeamRole[]; onOpenChange(open: boolean): void; onSaved(user: TeamUser): void }) {
   const [submitting, setSubmitting] = useState(false);
   const [password, setPassword] = useState('');
-  useEffect(() => { if (open) setPassword(''); }, [open, user]);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  useEffect(() => { if (open) { setPassword(''); setAvatarUrl(user?.avatarUrl ?? ''); } }, [open, user]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setSubmitting(true);
     try {
-      const saved = user ? await updateUser(user.id, { version: user.version, email: String(form.get('email')), name: String(form.get('name')), roleId: String(form.get('roleId')), status: String(form.get('status')) as UserStatus, ...(password ? { password } : {}) }) : await createUser({ email: String(form.get('email')), name: String(form.get('name')), roleId: String(form.get('roleId')), password });
+      const saved = user ? await updateUser(user.id, { version: user.version, email: String(form.get('email')), name: String(form.get('name')), avatarUrl: avatarUrl || null, roleId: String(form.get('roleId')), status: String(form.get('status')) as UserStatus, ...(password ? { password } : {}) }) : await createUser({ email: String(form.get('email')), name: String(form.get('name')), roleId: String(form.get('roleId')), password });
       onSaved(saved); onOpenChange(false); toast.success(user ? 'Usuario actualizado.' : 'Usuario creado.');
     } catch (error) { toast.error(message(error)); } finally { setSubmitting(false); }
   }
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><form onSubmit={submit} className="space-y-4"><DialogHeader><DialogTitle>{user ? 'Administrar usuario' : 'Agregar integrante'}</DialogTitle><DialogDescription>{user ? 'Cambiar rol o estado revoca las sesiones.' : 'Definí una contraseña inicial y compartila de forma segura con el nuevo integrante.'}</DialogDescription></DialogHeader>
     <div><Label htmlFor="team-name">Nombre</Label><Input id="team-name" name="name" defaultValue={user?.name} required /></div>
     <div><Label htmlFor="team-email">Email</Label><Input id="team-email" name="email" type="email" defaultValue={user?.email} required /></div>
+    {user ? <AvatarPicker value={avatarUrl} onChange={setAvatarUrl} /> : null}
     <div><div className="mb-1 flex items-center justify-between gap-3"><Label htmlFor="team-password">{user ? 'Nueva contraseña' : 'Contraseña inicial'}</Label><Button type="button" variant="outline" size="sm" onClick={() => setPassword(generateSecurePassword())}>Generar contraseña segura</Button></div><Input id="team-password" name="password" type="text" autoComplete="new-password" minLength={8} maxLength={200} value={password} onChange={(event) => setPassword(event.target.value)} required={!user} placeholder={user ? 'Dejar vacío para conservar la actual' : undefined} /><p className="mt-1 text-xs text-stone-500">{user ? 'Si definís una nueva contraseña, se cerrarán todas las sesiones de este usuario.' : 'Copiala antes de guardar para enviársela al usuario.'}</p></div>
     <div><Label htmlFor="team-role">Rol</Label><select id="team-role" name="roleId" defaultValue={user?.role.id ?? roles[0]?.id} className="mt-1 h-9 w-full rounded-md border bg-white px-3" required>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></div>
     {user && <div><Label htmlFor="team-status">Estado</Label><select id="team-status" name="status" defaultValue={user.status} className="mt-1 h-9 w-full rounded-md border bg-white px-3">{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>}

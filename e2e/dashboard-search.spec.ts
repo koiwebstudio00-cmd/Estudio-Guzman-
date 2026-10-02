@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 const permissions = ['dashboard.read', 'cases.read', 'contacts.read', 'actions.read', 'users.read', 'roles.read', 'team_metrics.read'];
 const user = { id: 'user-1', email: 'admin@example.com', name: 'Admin', avatarUrl: null, status: 'ACTIVE', version: 1, lastLoginAt: null, createdAt: '', updatedAt: '', role: { id: 'role-1', code: 'HEAD', name: 'Jefe' }, permissions };
 const role = { id: 'role-1', code: 'HEAD', name: 'Jefe', description: null, isSystem: true, userCount: 1, permissions: permissions.map((code) => ({ id: code, code, description: code })), createdAt: '', updatedAt: '' };
+const actorAvatarUrl = 'https://i.postimg.cc/brBnVNx5/koi-logo.webp';
 const dashboardTasks = Array.from({ length: 18 }, (_, index) => ({
   id: `task-${index + 1}`,
   title: index === 0 ? 'Revisar demanda' : `Tarea ${index + 1}`,
@@ -18,7 +19,7 @@ const dashboardActivity = Array.from({ length: 14 }, (_, index) => ({
   entityType: 'LegalCase',
   entityId: `case-${index + 1}`,
   createdAt: '2026-09-19T12:00:00.000Z',
-  actor: { id: 'user-1', name: 'Admin' },
+  actor: { id: 'user-1', name: 'Admin', avatarUrl: actorAvatarUrl },
 }));
 
 test('shows database KPIs, navigates global search and filters team metrics', async ({ page }) => {
@@ -41,6 +42,7 @@ test('shows database KPIs, navigates global search and filters team metrics', as
   await expect(page.getByText('7', { exact: true })).toBeVisible();
   await expect(page.getByText('Revisar demanda')).toBeVisible();
   await expect(page.getByText(/creó un expediente/).first()).toBeVisible();
+  await expect(page.locator(`img[src="${actorAvatarUrl}"]`).first()).toBeVisible();
   const tasksContent = page.getByLabel('Lista de mis tareas');
   const activityContent = page.getByLabel('Lista de actividad reciente');
   await expect(tasksContent).toHaveCSS('overflow-y', 'auto');
