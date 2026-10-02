@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test('loads the real team contract and creates a user with an initial password', async ({ page }) => {
-  let updatedUser: { email?: string; password?: string } | null = null;
+test('loads the real team contract, creates a user and assigns an avatar', async ({ page }) => {
+  let updatedUser: { email?: string; password?: string; avatarUrl?: string | null } | null = null;
   const permissions = ['dashboard.read', 'users.read', 'users.manage', 'roles.read', 'roles.manage'];
   const role = {
     id: '52d73225-91f5-47f0-98e7-6d6820f72693', code: 'HEAD', name: 'Jefe', description: null,
@@ -28,8 +28,8 @@ test('loads the real team contract and creates a user with an initial password',
       return route.fulfill({ status: 201, json: { data: { ...admin, id: 'new-user-id', email: body.email, name: body.name, role: { id: role.id, code: role.code, name: role.name } } } });
     }
     if (path.endsWith('/users/new-user-id') && route.request().method() === 'PATCH') {
-      updatedUser = route.request().postDataJSON() as { email?: string; password?: string };
-      return route.fulfill({ json: { data: { ...admin, id: 'new-user-id', email: updatedUser.email, name: 'Nueva Integrante', version: 2 } } });
+      updatedUser = route.request().postDataJSON() as { email?: string; password?: string; avatarUrl?: string | null };
+      return route.fulfill({ json: { data: { ...admin, id: 'new-user-id', email: updatedUser.email, name: 'Nueva Integrante', avatarUrl: updatedUser.avatarUrl, version: 2 } } });
     }
     return route.fulfill({ status: 404, json: {} });
   });
@@ -44,8 +44,10 @@ test('loads the real team contract and creates a user with an initial password',
   await expect(page.getByText('nueva@example.com')).toBeVisible();
   await page.getByRole('button', { name: 'Administrar' }).click();
   await page.getByLabel('Email').fill('actualizada@example.com');
+  await page.locator('label').filter({ has: page.getByLabel('Avatar 2') }).click();
   await page.getByRole('button', { name: 'Generar contraseña segura' }).click();
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   expect(updatedUser).toMatchObject({ email: 'actualizada@example.com' });
   expect(updatedUser?.password).toHaveLength(20);
+  expect(updatedUser?.avatarUrl).toBe('https://i.pinimg.com/1200x/ca/f2/65/caf2651168131bf1615a1079dd411c62.jpg');
 });

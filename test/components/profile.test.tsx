@@ -31,5 +31,7 @@ describe('Profile', () => {
     expect(screen.getAllByText('perfil@example.com').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Abogado/a').length).toBeGreaterThan(0);
     expect(screen.getByText('Ver contactos')).toBeVisible();
+    expect(screen.getByRole('radio', { name: 'Avatar 1' })).toBeVisible();
+    expect(screen.getByRole('radio', { name: 'Koi Studio' })).toBeVisible();
   });
 });

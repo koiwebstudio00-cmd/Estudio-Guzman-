@@ -4,6 +4,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { ActorAvatar } from '../components/ActorAvatar';
 import { getAuditLogs } from '../features/audit/api';
 import { auditActionLabel, auditEntityLabel, auditEntityOptions } from '../features/audit/labels';
 import type { AuditFilters, AuditJson, AuditLog } from '../features/audit/types';
@@ -124,7 +125,7 @@ function ActivityRow({ item }: { item: AuditLog }) {
     <article className="rounded-xl border bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border bg-stone-100 text-sm font-medium">{item.actor?.name.charAt(0).toUpperCase() ?? '?'}</span>
+          <ActorAvatar name={item.actor?.name ?? 'Sistema'} avatarUrl={item.actor?.avatarUrl ?? null} />
           <div className="min-w-0">
             <p><strong>{item.actor?.name ?? 'Sistema'}</strong> {auditActionLabel(item.action)}</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">

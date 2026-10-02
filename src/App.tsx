@@ -17,6 +17,8 @@ import { PermissionRoute } from './auth/PermissionRoute';
 import { Profile } from './pages/Profile';
 import { ContactDetail } from './pages/ContactDetail';
 import { Notifications } from './pages/Notifications';
+import { SubCaseDetail } from './pages/SubCaseDetail';
+import { ActionDetail } from './pages/ActionDetail';
 
 export default function App() {
   return (
@@ -32,6 +34,8 @@ export default function App() {
             <Route path="/juicios" element={<CasesList />} />
             <Route path="/juicios/nuevo" element={<NewCase />} />
             <Route path="/juicios/:id" element={<CaseDetail />} />
+            <Route path="/juicios/:id/cuadernos/:subCaseId" element={<SubCaseDetail />} />
+            <Route path="/juicios/:id/cuadernos/:subCaseId/actuaciones/:actionId" element={<ActionDetail />} />
             <Route path="/tareas" element={<Tasks />} />
             <Route path="/contactos" element={<Contacts />} />
             <Route path="/contactos/:id" element={<PermissionRoute permission="contacts.read"><ContactDetail /></PermissionRoute>} />

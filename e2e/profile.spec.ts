@@ -31,9 +31,10 @@ test('updates the own profile and changes the password using the current credent
   await page.goto('/perfil');
   await page.getByLabel('Nombre').fill('Administración Guzmán');
   await page.getByLabel('Email').first().fill('perfil@example.com');
+  await page.locator('label').filter({ has: page.getByLabel('Avatar 3') }).click();
   await page.getByRole('button', { name: 'Guardar datos' }).click();
   await expect(page.getByRole('heading', { name: 'Administración Guzmán' })).toBeVisible();
-  expect(profileBody).toMatchObject({ version: 1, name: 'Administración Guzmán', email: 'perfil@example.com' });
+  expect(profileBody).toMatchObject({ version: 1, name: 'Administración Guzmán', email: 'perfil@example.com', avatarUrl: 'https://i.pinimg.com/736x/64/f8/37/64f837cd7c77b0e335174410ed3ca6f9.jpg' });
 
   await page.getByLabel('Contraseña actual').fill('ClaveSegura123');
   await page.getByLabel('Nueva contraseña', { exact: true }).fill('NuevaClaveSegura456');

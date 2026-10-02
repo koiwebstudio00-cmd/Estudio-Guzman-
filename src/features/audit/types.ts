@@ -12,7 +12,7 @@ export interface AuditLog {
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
-  actor: { id: string; name: string; email: string } | null;
+  actor: { id: string; name: string; email: string; avatarUrl: string | null } | null;
 }
 
 export interface AuditFilters {

@@ -1,7 +1,15 @@
 import { ApiProblem, apiRequest, apiUrl, getCsrfToken } from '../../lib/api';
 import type { LegalDocument } from './types';
 
-export const getDocuments = (caseId: string, cursor?: string, signal?: AbortSignal) => apiRequest<{ data: LegalDocument[]; meta: { nextCursor: string | null } }>(`/documents?caseId=${caseId}&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { signal });
+export type DocumentContext = { caseId: string } | { subCaseId: string } | { actionId: string };
+
+export const getDocuments = (context: DocumentContext, cursor?: string, signal?: AbortSignal) => {
+  const query = new URLSearchParams({ limit: '25' });
+  const [key, value] = Object.entries(context)[0];
+  query.set(key, value);
+  if (cursor) query.set('cursor', cursor);
+  return apiRequest<{ data: LegalDocument[]; meta: { nextCursor: string | null } }>(`/documents?${query}`, { signal });
+};
 
 const multipartRequest = (path: string, form: FormData, onProgress: (percent: number) => void) => new Promise<LegalDocument>((resolve, reject) => {
   const xhr = new XMLHttpRequest();

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const actorAvatarUrl = 'https://i.postimg.cc/brBnVNx5/koi-logo.webp';
+
 const user = {
   id: 'user-1', email: 'admin@example.com', name: 'Administrador', avatarUrl: null, status: 'ACTIVE', version: 1,
   lastLoginAt: null, createdAt: '', updatedAt: '', role: { id: 'role-1', code: 'ADMIN', name: 'Administrador' },
@@ -16,10 +18,10 @@ test('filters and paginates the complete activity log', async ({ page }) => {
       searches.push(url.search);
       const cursor = url.searchParams.get('cursor');
       return route.fulfill({ json: cursor ? {
-        data: [{ id: '1', action: 'AUTH_LOGIN_SUCCEEDED', entityType: 'Session', entityId: 'session-1', before: null, after: null, metadata: null, requestId: null, ipAddress: null, userAgent: null, createdAt: '2026-09-19T11:00:00.000Z', actor: { id: 'user-1', name: 'Administrador', email: 'admin@example.com' } }],
+        data: [{ id: '1', action: 'AUTH_LOGIN_SUCCEEDED', entityType: 'Session', entityId: 'session-1', before: null, after: null, metadata: null, requestId: null, ipAddress: null, userAgent: null, createdAt: '2026-09-19T11:00:00.000Z', actor: { id: 'user-1', name: 'Administrador', email: 'admin@example.com', avatarUrl: actorAvatarUrl } }],
         meta: { nextCursor: null },
       } : {
-        data: [{ id: '2', action: 'CASE_CREATED', entityType: 'LegalCase', entityId: 'case-1', before: null, after: { status: 'ACTIVE' }, metadata: null, requestId: 'request-1', ipAddress: '127.0.0.1', userAgent: 'Browser', createdAt: '2026-09-20T12:00:00.000Z', actor: { id: 'user-1', name: 'Administrador', email: 'admin@example.com' } }],
+        data: [{ id: '2', action: 'CASE_CREATED', entityType: 'LegalCase', entityId: 'case-1', before: null, after: { status: 'ACTIVE' }, metadata: null, requestId: 'request-1', ipAddress: '127.0.0.1', userAgent: 'Browser', createdAt: '2026-09-20T12:00:00.000Z', actor: { id: 'user-1', name: 'Administrador', email: 'admin@example.com', avatarUrl: actorAvatarUrl } }],
         meta: { nextCursor: '1' },
       } });
     }
@@ -30,6 +32,7 @@ test('filters and paginates the complete activity log', async ({ page }) => {
   await page.goto('/actividad');
   await expect(page.getByRole('heading', { name: 'Actividad' })).toBeVisible();
   await expect(page.getByText('creó un expediente')).toBeVisible();
+  await expect(page.locator(`img[src="${actorAvatarUrl}"]`)).toBeVisible();
 
   await page.getByLabel('Tipo de actividad').selectOption('Task');
   await page.getByLabel('Actividad desde').fill('2026-09-01');
