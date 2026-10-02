@@ -11,6 +11,8 @@ interface AuthContextValue {
   login(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
   logoutAll(): Promise<void>;
+  updateProfile(input: { version: number; name: string; email: string; avatarUrl: string | null }): Promise<void>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
   can(permission: string): boolean;
 }
 
@@ -92,6 +94,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clear]);
 
+  const updateProfile = useCallback(async (input: { version: number; name: string; email: string; avatarUrl: string | null }) => {
+    const response = await apiRequest<UserResponse>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+    setUser(response.data.user);
+  }, []);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await apiRequest<void>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    clear(false);
+  }, [clear]);
+
   const value = useMemo<AuthContextValue>(() => ({
     status,
     user,
@@ -99,8 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     logoutAll,
+    updateProfile,
+    changePassword,
     can: (permission) => user?.permissions.includes(permission) ?? false,
-  }), [status, user, sessionExpired, login, logout, logoutAll]);
+  }), [status, user, sessionExpired, login, logout, logoutAll, updateProfile, changePassword]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
