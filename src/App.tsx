@@ -36,6 +36,7 @@ export default function App() {
             <Route path="/juicios/:id" element={<CaseDetail />} />
             <Route path="/juicios/:id/cuadernos/:subCaseId" element={<SubCaseDetail />} />
             <Route path="/juicios/:id/cuadernos/:subCaseId/actuaciones/:actionId" element={<ActionDetail />} />
+            <Route path="/juicios/:id/actuaciones/:actionId" element={<ActionDetail />} />
             <Route path="/tareas" element={<Tasks />} />
             <Route path="/contactos" element={<Contacts />} />
             <Route path="/contactos/:id" element={<PermissionRoute permission="contacts.read"><ContactDetail /></PermissionRoute>} />

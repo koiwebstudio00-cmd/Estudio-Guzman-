@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, CalendarDays, ChevronRight, FileText, Files, NotebookTabs, Plus } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronRight, Edit, FileText, Files, NotebookTabs, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { DeleteResourceDialog } from '../components/DeleteResourceDialog';
 import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { getCase } from '../features/cases/api';
@@ -12,7 +14,8 @@ import { getCatalogs } from '../features/contacts/api';
 import type { CatalogOption, Catalogs } from '../features/contacts/types';
 import { CaseDocuments } from '../features/documents/CaseDocuments';
 import { ActionDialog } from '../features/timeline/ActionDialog';
-import { getActions, getSubCase } from '../features/timeline/api';
+import { SubCaseDialog, SubCaseStatusDialog } from '../features/timeline/SubCaseDialogs';
+import { deleteSubCase, getActions, getSubCase } from '../features/timeline/api';
 import type { CaseAction, SubCase } from '../features/timeline/types';
 import { ApiProblem } from '../lib/api';
 
@@ -28,6 +31,10 @@ export function SubCaseDetail() {
   const [actions, setActions] = useState<CaseAction[]>([]);
   const [catalogs, setCatalogs] = useState<Catalogs | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +82,12 @@ export function SubCaseDetail() {
           <div><p className="text-sm text-stone-500">{legalCase.caseNumber} · {legalCase.title}</p><h1 className="mt-1 text-2xl font-bold">{subCase.title}</h1></div>
           <p className="max-w-3xl text-stone-600">{subCase.description ?? 'Sin descripción.'}</p>
         </div>
-        {can('actions.create') && !readOnly ? <Button onClick={() => setActionOpen(true)}><Plus className="h-4 w-4" /> Nueva actuación</Button> : null}
+        <div className="flex flex-wrap gap-2">
+          {can('subcases.manage') && !readOnly ? <Button variant="outline" onClick={() => setEditOpen(true)}><Edit className="h-4 w-4" /> Editar cuaderno</Button> : null}
+          {can('subcases.manage') && legalCase.status !== 'ARCHIVED' && (subCase.status !== 'CLOSED' || can('cases.archive')) ? <Button variant="outline" onClick={() => setStatusOpen(true)}><RefreshCw className="h-4 w-4" /> Cambiar estado</Button> : null}
+          {can('actions.create') && !readOnly ? <Button onClick={() => setActionOpen(true)}><Plus className="h-4 w-4" /> Nueva actuación</Button> : null}
+          {can('subcases.manage') && legalCase.status !== 'ARCHIVED' ? <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4" /> Eliminar cuaderno</Button> : null}
+        </div>
       </div>
       <div className="mt-6 grid gap-3 border-t pt-5 sm:grid-cols-4">
         <Summary icon={<FileText className="h-4 w-4" />} label="Actuaciones" value={actions.length} />
@@ -91,6 +103,10 @@ export function SubCaseDetail() {
       </TabsContent>
       <TabsContent value="documents"><CaseDocuments caseId={caseId} subCaseId={subCaseId} readOnly={readOnly} /></TabsContent>
     </Tabs>
+    {readOnly ? <p className="rounded-lg border bg-stone-50 p-4 text-sm text-stone-600">{legalCase.status === 'ARCHIVED' ? 'El juicio está archivado y todo su contenido es de sólo lectura.' : 'El cuaderno está cerrado. Reabrilo para volver a editar información o agregar actuaciones y documentos.'}</p> : null}
+    <SubCaseDialog open={editOpen} caseId={caseId} subCase={subCase} onOpenChange={setEditOpen} onSaved={setSubCase} />
+    <SubCaseStatusDialog open={statusOpen} subCase={subCase} canReopen={can('cases.archive')} onOpenChange={setStatusOpen} onSaved={setSubCase} />
+    <DeleteResourceDialog open={deleteOpen} title="Eliminar cuaderno" description="Sólo se puede eliminar un cuaderno sin actuaciones, tareas, documentos ni notas vinculadas. Esta acción lo quitará del juicio." confirmLabel="Eliminar cuaderno" submitting={deleting} onOpenChange={setDeleteOpen} onConfirm={async () => { setDeleting(true); try { await deleteSubCase(subCaseId); toast.success('Cuaderno eliminado.'); navigate(`/juicios/${caseId}`); } catch (requestError) { toast.error(errorMessage(requestError)); } finally { setDeleting(false); } }} />
     <ActionDialog open={actionOpen} caseId={caseId} subcases={[]} fixedSubCase={subCase} catalogs={catalogs} onOpenChange={setActionOpen} onSaved={(action) => navigate(`/juicios/${caseId}/cuadernos/${subCaseId}/actuaciones/${action.id}`)} />
   </div>;
 }

@@ -21,6 +21,15 @@ Estados permitidos: **Hecho**, **En curso**, **Pendiente**, **Bloqueado**.
 
 ## Registro de avances
 
+### 2026-10-05 — Gestión de cuadernos y actuaciones — Hecho
+
+- Se incorporó edición de título y descripción de cuadernos con optimistic locking.
+- El detalle del cuaderno centraliza creación de actuaciones, edición y transiciones de estado con motivo.
+- Las actuaciones pueden abrirse desde el timeline o desde el cuaderno y editar sus metadatos según permisos y autoría.
+- Los cuadernos cerrados y expedientes archivados muestran explícitamente el modo de sólo lectura.
+- Se agregaron acciones de baja con confirmación para juicios, cuadernos y actuaciones. La baja de actuaciones exige motivo; juicios y cuadernos sólo pueden eliminarse cuando no tienen actividad vinculada.
+- Se agregó cobertura de integración y E2E para edición, navegación y restricciones por estado.
+
 ### 2026-10-02 — Edición de perfiles y contraseñas — Hecho
 
 - Cada usuario puede actualizar nombre, email y avatar desde “Mi perfil” usando optimistic locking.
